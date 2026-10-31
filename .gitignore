@@ -1,0 +1,13 @@
+# source images and exported thumbnails stay local (source art is copyrighted)
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.psd
+
+# saved styles may contain logos; commit them deliberately if you want to share
+*.thumbstyle.json
+
+.DS_Store
+Thumbs.db

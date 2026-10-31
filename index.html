@@ -1,0 +1,1805 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thumbnail Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Kanit:wght@400;700;800;900&family=Prompt:wght@700;800;900&family=Mitr:wght@500;700&family=Bai+Jamjuree:wght@600;700&family=Anton&family=Bebas+Neue&family=Oswald:wght@500;700&family=Russo+One&family=Black+Ops+One&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0c0f; --surface:#121419; --surface-2:#181b21; --surface-3:#20242c;
+    --line:#242831; --line-2:#323743;
+    --text:#ebecef; --muted:#9298a6; --faint:#646a77;
+    --accent:#e8b44c; --accent-ink:#1a1305; --danger:#ef6461; --track:#2a2f39;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 "IBM Plex Sans Thai",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit}
+  .ic{flex:none;display:block}
+
+  .app{display:grid;grid-template-rows:52px 1fr;height:100vh}
+  .topbar{display:flex;align-items:center;gap:6px;padding:0 12px 0 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .brand{font-weight:600;font-size:14px;display:flex;align-items:baseline;gap:10px}
+  .brand small{color:var(--faint);font-weight:400;font-size:12px;font-variant-numeric:tabular-nums}
+  .spacer{flex:1}
+  .vsep{width:1px;height:20px;background:var(--line-2);margin:0 6px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--line-2);background:var(--surface-2);cursor:pointer;white-space:nowrap}
+  .btn:hover{background:var(--surface-3)}
+  .btn:disabled{opacity:.35;cursor:default;background:var(--surface-2)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn.ghost:hover:not(:disabled){background:var(--surface-3);color:var(--text)}
+  .btn.icon{width:32px;padding:0}
+  .btn.sm{height:28px;padding:0 10px;font-size:12.5px}
+  .btn.block{width:100%}
+  .btn.danger{color:var(--danger)}
+
+  .work{display:grid;grid-template-columns:52px minmax(0,1fr) 368px;min-height:0}
+  .rail{border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0;background:var(--surface)}
+  .tool{width:36px;height:36px;border-radius:8px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;position:relative}
+  .tool:hover{background:var(--surface-3);color:var(--text)}
+  .tool.on{background:var(--accent);color:var(--accent-ink)}
+  .tool:hover::after{content:attr(data-tip);position:absolute;left:44px;top:50%;transform:translateY(-50%);background:var(--surface-3);border:1px solid var(--line-2);color:var(--text);padding:4px 8px;border-radius:6px;white-space:nowrap;font-size:12px;z-index:5;pointer-events:none}
+
+  .stage{min-width:0;min-height:0;overflow:auto;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .canvasBox{position:relative;width:100%;max-width:1120px;border-radius:6px;overflow:hidden;background:#000;box-shadow:0 0 0 1px var(--line),0 24px 60px -24px #000}
+  canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;touch-action:none;cursor:grab}
+  canvas.dragging{cursor:grabbing}
+  canvas.pick{cursor:crosshair}
+  canvas.focus{cursor:cell}
+  .empty{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;gap:12px;padding:24px;background:var(--surface)}
+  .dz{border:1.5px dashed var(--line-2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--faint);cursor:pointer;text-align:center;padding:16px;transition:border-color .15s,background .15s,color .15s}
+  .dz:hover,.dz.over{border-color:var(--accent);color:var(--muted);background:rgba(232,180,76,.04)}
+  .dz b{color:var(--text);font-weight:500;font-size:14px}
+  .dz small{font-size:12px}
+  .empty .foot{grid-column:1/-1;text-align:center;color:var(--faint);font-size:12px}
+
+  .assets{width:100%;max-width:1120px;display:flex;gap:8px;align-items:center}
+  .slot{display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:0;flex:0 1 230px;cursor:pointer;transition:border-color .15s}
+  .slot:hover,.slot.over{border-color:var(--line-2)}
+  .slot.over{border-color:var(--accent)}
+  .slot .thumb{width:60px;height:34px;border-radius:4px;background:var(--surface-3) center/cover no-repeat;flex:none;display:grid;place-items:center;color:var(--faint)}
+  .slot.char .thumb{background-size:contain;background-color:#08090b}
+  .slot .meta{min-width:0;flex:1}
+  .slot b{display:block;font-weight:500;font-size:12.5px}
+  .slot small{display:block;color:var(--faint);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hintbar{flex:1;color:var(--faint);font-size:12px;text-align:right;min-width:0}
+  kbd{font:11px ui-monospace,Consolas,monospace;background:var(--surface-3);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--muted)}
+
+  .inspector{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0}
+  .tabs{display:flex;padding:0 6px;border-bottom:1px solid var(--line);flex:none}
+  .tab{flex:1;height:44px;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-weight:500;font-size:12.5px;margin-bottom:-1px}
+  .tab:hover{color:var(--text)}
+  .tab.on{color:var(--text);border-bottom-color:var(--accent)}
+  .panes{overflow:auto;flex:1;min-height:0}
+  .pane{display:none;padding:0 16px 32px}
+  .pane.on{display:block}
+
+  .group{padding:16px 0 12px;border-bottom:1px solid var(--line)}
+  .group:last-child{border-bottom:0}
+  .group h3{margin:0 0 4px;font-size:13px;font-weight:600}
+  .hint{margin:0 0 10px;color:var(--faint);font-size:12px}
+  .ctl{margin:12px 0}
+  .ctl-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;gap:8px}
+  .ctl-head label,.lbl{color:var(--muted);font-size:12.5px}
+  .ctl-head output{font-variant-numeric:tabular-nums;color:var(--text);font-size:12px}
+  .ctl-inline{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
+  .ctl[title]{cursor:default}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;margin:0;background:transparent;cursor:pointer;--p:50%}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--accent) var(--p),var(--track) var(--p))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;background:#f3f4f6;border:0;box-shadow:0 0 0 3px var(--surface),0 1px 3px #000}
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--track)}
+  input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--accent)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#f3f4f6;border:0;box-shadow:0 0 0 3px var(--surface)}
+  input[type=range]:focus-visible{outline:none}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--accent)}
+
+  .switch{-webkit-appearance:none;appearance:none;width:30px;height:18px;border-radius:9px;background:var(--track);position:relative;cursor:pointer;transition:background .15s;flex:none;margin:0}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#c9ccd3;transition:transform .15s}
+  .switch:checked{background:var(--accent)}
+  .switch:checked::after{transform:translateX(12px);background:#fff}
+
+  .seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:2px;gap:2px}
+  .seg button{flex:1;height:26px;border:0;background:transparent;color:var(--muted);border-radius:5px;cursor:pointer;font-size:12px;padding:0 6px;white-space:nowrap}
+  .seg button:hover{color:var(--text)}
+  .seg button.on{background:var(--surface-3);color:var(--text);box-shadow:0 0 0 1px var(--line-2)}
+
+  .color{display:flex;align-items:center;gap:6px}
+  .color input[type=color]{-webkit-appearance:none;appearance:none;width:26px;height:26px;border:1px solid var(--line-2);border-radius:6px;padding:0;background:none;cursor:pointer}
+  .color input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  .color input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
+  .color input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
+  .color input[type=text]{width:78px;height:26px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font:12px ui-monospace,Consolas,monospace;padding:0 7px;text-transform:uppercase}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin:-4px 0 10px}
+  .swatches button{width:18px;height:18px;border-radius:50%;border:1px solid #0009;padding:0;cursor:pointer;transition:transform .1s}
+  .swatches button:hover{transform:scale(1.18)}
+
+  select,textarea,input.text{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;color:var(--text);font:inherit;padding:6px 8px}
+  select:focus,textarea:focus,input.text:focus,.color input[type=text]:focus{outline:none;border-color:var(--line-2);box-shadow:0 0 0 2px rgba(232,180,76,.25)}
+  textarea{resize:vertical;min-height:62px;line-height:1.4}
+
+  .more{margin-top:4px}
+  .more summary{cursor:pointer;color:var(--faint);font-size:12px;list-style:none;display:inline-flex;align-items:center;gap:7px;padding:4px 0;user-select:none}
+  .more summary:hover{color:var(--muted)}
+  .more summary::-webkit-details-marker{display:none}
+  .more summary::before{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+  .more[open] summary::before{transform:rotate(45deg)}
+
+  .modes{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .mode{display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:5px 5px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer;color:var(--muted);font-size:11.5px;text-align:center}
+  .mode svg{width:100%;height:auto;display:block;border-radius:4px}
+  .mode:hover{border-color:var(--line-2);color:var(--text)}
+  .mode.on{border-color:var(--accent);color:var(--text)}
+  .modeDesc{margin:10px 0 0;color:var(--faint);font-size:12px;min-height:18px}
+
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+  .btnrow .btn{flex:1}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .card{text-align:left;padding:10px 10px 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer}
+  .card:hover{border-color:var(--line-2);background:var(--surface-3)}
+  .card .bar{height:3px;border-radius:2px;margin-bottom:9px}
+  .card b{display:block;font-weight:600;font-size:12.5px}
+  .card small{display:block;color:var(--faint);font-size:11.5px;margin-top:2px}
+
+  .list{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+  .item{display:flex;align-items:center;gap:8px;padding:0 4px 0 10px;height:36px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);cursor:pointer}
+  .item:hover{border-color:var(--line-2)}
+  .item.sel{border-color:var(--accent)}
+  .item.hidden .nm{color:var(--faint)}
+  .item .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .ic-type{color:var(--faint)}
+  .acts{display:flex}
+  .acts button{width:26px;height:26px;border:0;background:none;color:var(--faint);border-radius:5px;cursor:pointer;display:grid;place-items:center}
+  .acts button:hover{background:var(--surface-3);color:var(--text)}
+  .acts button.on{color:var(--accent)}
+  .acts button.confirm{color:var(--danger);width:auto;padding:0 6px;font-size:11.5px}
+  .empty-note{color:var(--faint);font-size:12px;padding:14px 10px;border:1px dashed var(--line);border-radius:8px;text-align:center;margin-top:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+  .chip{height:26px;padding:0 10px;border-radius:13px;border:1px solid var(--line-2);background:var(--surface-2);cursor:pointer;font-size:12px;color:var(--muted)}
+  .chip:hover{background:var(--surface-3);color:var(--text)}
+  .inline{display:flex;gap:6px}
+  .inline .text{flex:1}
+  .propsHead{display:flex;align-items:center;justify-content:space-between;margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+  .propsHead h3{margin:0;font-size:13px;font-weight:600}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);background:var(--surface-3);border:1px solid var(--line-2);padding:8px 14px;border-radius:8px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:50;box-shadow:0 10px 30px #0008}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  dialog{background:var(--surface);color:var(--text);border:1px solid var(--line-2);border-radius:12px;padding:20px 22px;width:min(480px,92vw)}
+  dialog::backdrop{background:#000b}
+  dialog h2{margin:0 0 14px;font-size:15px;font-weight:600}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:9px 18px;align-items:center;color:var(--muted)}
+  .keys span:nth-child(odd){text-align:right}
+
+  @media (max-width:1150px){.work{grid-template-columns:52px minmax(0,1fr) 330px}}
+  @media (max-width:860px){
+    .app{height:auto;display:block}
+    .work{display:block}
+    .rail{flex-direction:row;justify-content:center;border-right:0;border-bottom:1px solid var(--line)}
+    .tool:hover::after{display:none}
+    .stage{padding:12px}
+    .assets{flex-wrap:wrap}
+    .slot{flex:1 1 160px}
+    .hintbar{flex-basis:100%;text-align:left}
+    .inspector{border-left:0;border-top:1px solid var(--line)}
+    .panes{overflow:visible}
+    .topbar .label{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Thumbnail Maker <small>1280 × 720</small></div>
+    <div class="spacer"></div>
+    <button class="btn ghost icon" id="undoBtn" title="ย้อนกลับ (Ctrl+Z)"><i data-ic="undo"></i></button>
+    <button class="btn ghost icon" id="redoBtn" title="ทำซ้ำ (Ctrl+Y)"><i data-ic="redo"></i></button>
+    <button class="btn ghost icon" id="helpBtn" title="คีย์ลัด (?)"><i data-ic="help"></i></button>
+    <div class="vsep"></div>
+    <button class="btn" id="saveJpg" title="ไฟล์เล็ก เหมาะกับ YouTube (ไม่เกิน 2MB)">JPG</button>
+    <button class="btn primary" id="savePng"><i data-ic="download"></i><span class="label">ดาวน์โหลด PNG</span></button>
+  </header>
+
+  <div class="work">
+    <nav class="rail">
+      <button class="tool on" data-tool="move" data-tip="ย้าย / ปรับขนาด  V"><i data-ic="move" data-size="18"></i></button>
+      <button class="tool" data-tool="pick" data-tip="ดูดสีเอฟเฟกต์สกิล  I"><i data-ic="pipette" data-size="18"></i></button>
+      <button class="tool" data-tool="focus" data-tip="ตั้งจุดโฟกัส  F"><i data-ic="target" data-size="18"></i></button>
+    </nav>
+
+    <main class="stage">
+      <div class="canvasBox">
+        <canvas id="cv" width="1280" height="720"></canvas>
+        <div class="empty" id="empty">
+          <div class="dz" data-slot="game">
+            <i data-ic="image" data-size="26"></i>
+            <b>ภาพเกม LoL</b>
+            <small>คลิกเพื่อเลือก หรือลากไฟล์มาวาง</small>
+          </div>
+          <div class="dz" data-slot="char">
+            <i data-ic="user" data-size="26"></i>
+            <b>ภาพตัวละคร</b>
+            <small>PNG ตัดพื้นหลัง หรือภาพที่มีพื้นหลังก็ได้</small>
+          </div>
+          <div class="foot">วางภาพจากคลิปบอร์ดได้ด้วย <kbd>Ctrl</kbd> + <kbd>V</kbd></div>
+        </div>
+      </div>
+      <div class="assets">
+        <div class="slot game" data-slot="game"><div class="thumb"><i data-ic="image"></i></div><div class="meta"><b>ภาพเกม</b><small>ยังไม่ได้เลือก</small></div></div>
+        <div class="slot char" data-slot="char"><div class="thumb"><i data-ic="user"></i></div><div class="meta"><b>ตัวละคร</b><small>ยังไม่ได้เลือก</small></div></div>
+        <div class="hintbar" id="hint"></div>
+      </div>
+    </main>
+
+    <aside class="inspector">
+      <nav class="tabs">
+        <button class="tab" data-tab="game">เกม</button>
+        <button class="tab" data-tab="char">ตัวละคร</button>
+        <button class="tab" data-tab="look">ลุค</button>
+        <button class="tab" data-tab="text">ข้อความ</button>
+        <button class="tab" data-tab="styles">สไตล์</button>
+      </nav>
+      <div class="panes">
+        <div class="pane" data-pane="game"></div>
+        <div class="pane" data-pane="char"></div>
+        <div class="pane" data-pane="look"></div>
+        <div class="pane" data-pane="text"></div>
+        <div class="pane" data-pane="styles"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<dialog id="help">
+  <h2>คีย์ลัด</h2>
+  <div class="keys">
+    <span><kbd>V</kbd></span><span>ย้าย — ลากตัวละคร ข้อความ หรือภาพเกม</span>
+    <span><kbd>I</kbd></span><span>ดูดสีเอฟเฟกต์สกิลจากภาพเกม</span>
+    <span><kbd>F</kbd></span><span>ตั้งจุดโฟกัส (สกรอลล์ = ขนาดวง)</span>
+    <span>สกรอลล์</span><span>ขยาย / ย่อสิ่งที่อยู่ใต้เมาส์</span>
+    <span><kbd>Shift</kbd> + ลาก</span><span>เลื่อนภาพภายในกรอบ (แบบกรอบ)</span>
+    <span><kbd>Ctrl</kbd> <kbd>Z</kbd></span><span>ย้อนกลับ</span>
+    <span><kbd>Ctrl</kbd> <kbd>Y</kbd></span><span>ทำซ้ำ</span>
+    <span><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></span><span>ขยับเลเยอร์ที่เลือก (กด Shift = 10px)</span>
+    <span><kbd>Delete</kbd></span><span>ลบเลเยอร์ที่เลือก</span>
+    <span>ดับเบิลคลิก</span><span>ที่แถบเลื่อน เพื่อคืนค่าเริ่มต้น</span>
+  </div>
+  <div class="btnrow" style="justify-content:flex-end;margin-bottom:0"><button class="btn sm" style="flex:0" onclick="this.closest('dialog').close()">ปิด</button></div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const W = 1280, H = 720, MAXW = 1920;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+
+const ICONS = {
+  move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
+  pipette: '<path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M22 12h-3M5 12H2M12 5V2M12 22v-3"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  help: '<circle cx="12" cy="12" r="9.5"/><path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.6-2.8 4.2M12 17.5h.01"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',
+  type: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 5.1Q11.3 5 12 5c6.5 0 10 7 10 7s-.9 1.8-2.6 3.6M6.7 6.7C3.9 8.4 2 12 2 12s3.5 7 10 7c2 0 3.8-.6 5.3-1.6"/>',
+  up: '<path d="m18 15-6-6-6 6"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  star: '<path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/>',
+  save: '<path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8M7 21v-7h10v7"/>',
+  flip: '<path d="M12 3v18M8 7l-5 5 5 5M16 7l5 5-5 5"/>',
+  dice: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  center: '<path d="M3 9V5a2 2 0 0 1 2-2h4M15 3h4a2 2 0 0 1 2 2v4M21 15v4a2 2 0 0 1-2 2h-4M9 21H5a2 2 0 0 1-2-2v-4"/><circle cx="12" cy="12" r="2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>'
+};
+const icon = (n, s = 16) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
+document.querySelectorAll('i[data-ic]').forEach(i => { i.outerHTML = icon(i.dataset.ic, +(i.dataset.size || 16)); });
+
+const S = {
+  game: { zoom: 1, ox: 0, oy: 0, bright: 1, contrast: 1.05, sat: 1.05, sharp: 0.35 },
+  focus: { x: 0.5, y: 0.5, r: 0.22, vignette: 0.6, soft: 0.55 },
+  eff: {
+    on: false, target: '#ff3040', tol: 30, minSat: 0.4, region: true, preview: false,
+    recolor: false, color: '#ff2a4a', sat: 1.35, bright: 1.15, glow: 0.55, glowSize: 16
+  },
+  ch: {
+    mode: 'cutout', x: 960, y: 420, scale: 1.12, flip: false, blend: 'source-over',
+    bright: 1, contrast: 1.05, sat: 1.05, tint: 0, tintColor: '#ff3355',
+    backdrop: 0.75, backdropSize: 1, sideDark: 0.45,
+    fadeEdge: 0, fadeInner: 0, fadeBottom: 0.18,
+    glowColor: '#ff3355', glow: 30, glowStrength: 1, rim: -4, shadow: 0.6,
+    frameW: 560, frameH: 400, radius: 0, border: 0, innerZoom: 1, innerX: 0, innerY: 0,
+    panelSide: 'right', panelC1: '#06070c', panelC2: '#16122a',
+    lineColor: '#5ce1ff', lineW: 4, lineGlow: 24,
+    slashX: 0.55, slashAngle: 14, popOut: true, popY: 0.2,
+    pX: 0.56, pY: 0.12, pW: 0.4, pH: 0.8
+  },
+  style: {
+    brand: '#5ce1ff',
+    speed: 0, speedCount: 90, speedColor: '#ffffff', speedInner: 1.3, speedWidth: 3, seed: 7,
+    tone: 0, toneSize: 7, toneColor: '#ffffff', toneArea: 'panel',
+    grain: 0, ca: 0, letterbox: 0
+  },
+  layers: []
+};
+const DEFAULTS = JSON.parse(JSON.stringify(S));
+const MODE_DEFAULTS = {
+  cutout: { fadeEdge: 0, fadeInner: 0, fadeBottom: 0.18, glow: 30, glowStrength: 1, rim: -4, shadow: 0.6, backdrop: 0.75, sideDark: 0.45, blend: 'source-over' },
+  soft:   { fadeEdge: 0.08, fadeInner: 0.45, fadeBottom: 0.15, glow: 0, glowStrength: 0, rim: 0, shadow: 0, backdrop: 0.6, sideDark: 0.45, blend: 'source-over' },
+  frame:  { fadeEdge: 0, fadeInner: 0, fadeBottom: 0, glow: 0, glowStrength: 0, rim: 0, shadow: 0.6, backdrop: 0, sideDark: 0.3, blend: 'source-over' },
+  slash:  { fadeEdge: 0, fadeInner: 0, fadeBottom: 0, glow: 0, glowStrength: 0, rim: 0, shadow: 0.5, backdrop: 0, sideDark: 0, blend: 'source-over' },
+  popout: { fadeEdge: 0, fadeInner: 0, fadeBottom: 0, glow: 20, glowStrength: 1, rim: -3, shadow: 0.6, backdrop: 0, sideDark: 0.3, blend: 'source-over' }
+};
+
+const FONTS = [['Kanit', 'Kanit — ไทย'], ['Prompt', 'Prompt — ไทย'], ['Mitr', 'Mitr — ไทย'], ['Bai Jamjuree', 'Bai Jamjuree — ไทย'],
+  ['Anton', 'Anton'], ['Bebas Neue', 'Bebas Neue'], ['Oswald', 'Oswald'], ['Russo One', 'Russo One'], ['Black Ops One', 'Black Ops One']];
+const TEXT_DEF = {
+  type: 'text', visible: true, text: 'HOOK TEXT', x: 380, y: 130, font: 'Kanit', weight: 900, size: 96, upper: false,
+  fill1: '#ffffff', fill2: '#ffd34d', grad: false, stroke: '#000000', strokeW: 8, stroke2: '#5ce1ff', stroke2W: 0,
+  glow: 0, glowColor: '#5ce1ff', shadow: 0.6, rot: -3, skew: -6, spacing: 0, lineH: 1, align: 'center',
+  bg: 0, bgColor: '#000000', bgPad: 18
+};
+const IMAGE_DEF = { type: 'image', visible: true, x: 1160, y: 100, size: 130, opacity: 1, round: true, radius: 16, border: 4, borderColor: '#5ce1ff', shadow: 0.5, rot: 0 };
+const ITEMS_DEF = {
+  type: 'items', visible: true, imgIds: [], x: 340, y: 650, slot: 66, gap: 8, dir: 'row', radius: 8, border: 3,
+  borderColor: '#c8aa6e', plate: 0.55, label: 'BUILD', labelSize: 20, labelColor: '#c8aa6e', font: 'Russo One'
+};
+
+let gameImg = null, charImg = null, charBox = null, gameRect = null, pdim = null;
+let tool = 'move', imgId = 0, layerId = 0, selectedId = null;
+const store = new Map(), layerBoxes = new Map();
+
+// ---------- helpers ----------
+function off() { const c = document.createElement('canvas'); return { c, x: c.getContext('2d') }; }
+function size(o, w, h) { o.c.width = Math.max(1, w); o.c.height = Math.max(1, h); return o.x; }
+function rr(p, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  p.beginPath(); p.moveTo(x + r, y);
+  p.arcTo(x + w, y, x + w, y + h, r); p.arcTo(x + w, y + h, x, y + h, r);
+  p.arcTo(x, y + h, x, y, r); p.arcTo(x, y, x + w, y, r); p.closePath();
+}
+const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function rgbHex(r, g, b) { return '#' + [r, g, b].map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join(''); }
+function rgbHue(r, g, b) {
+  const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+  if (!d) return 0;
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h *= 60; return h < 0 ? h + 360 : h;
+}
+const hexHue = h => rgbHue(...hexRgb(h));
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const clone = o => JSON.parse(JSON.stringify(o));
+const pick = (o, ks) => Object.fromEntries(ks.map(k => [k, o[k]]));
+function register(im) { im._id = ++imgId; store.set(im._id, im); return im; }
+function loadSrc(src) {
+  return new Promise(res => { const im = new Image(); im.onload = () => res(register(im)); im.onerror = () => res(null); im.src = src; });
+}
+const loadImageFile = file => file && file.type.startsWith('image/') ? loadSrc(URL.createObjectURL(file)) : Promise.resolve(null);
+function imgToDataURL(im, max = 512) {
+  const s = Math.min(1, max / Math.max(im.width, im.height)), o = off();
+  size(o, Math.round(im.width * s), Math.round(im.height * s)).drawImage(im, 0, 0, o.c.width, o.c.height);
+  return o.c.toDataURL('image/png');
+}
+const triedFonts = new Set();
+function ensureFont(f) {
+  if (triedFonts.has(f)) return;
+  triedFonts.add(f);
+  document.fonts.load(f).then(schedule).catch(() => {});
+}
+let toastTimer = 0;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+const piece = off(), mask = off(), sil = off(), gameCache = off(), glowCache = off(), tmp = off();
+const caR = off(), caG = off(), caB = off();
+
+// ---------- game processing (sharpen + effect-only color work), cached ----------
+function baseData(im) {
+  if (im._base) return im._base;
+  const s = Math.min(1, MAXW / im.width);
+  const w = Math.round(im.width * s), h = Math.round(im.height * s);
+  const o = off(), x = size(o, w, h);
+  x.drawImage(im, 0, 0, w, h);
+  return im._base = { w, h, d: x.getImageData(0, 0, w, h).data };
+}
+
+let cacheKey = '', hasGlow = false;
+function ensureGame() {
+  const e = S.eff, f = S.focus;
+  const key = [gameImg._id, S.game.sharp, JSON.stringify(e), e.on && e.region ? [f.x, f.y, f.r].join() : ''].join('|');
+  if (key === cacheKey) return;
+  cacheKey = key;
+  const { w, h, d } = baseData(gameImg);
+  const gx = size(gameCache, w, h), out = gx.createImageData(w, h), o = out.data;
+  hasGlow = e.on && e.glow > 0 && !e.preview;
+  let gImg = null, gd = null;
+  if (hasGlow) { gImg = size(glowCache, w, h).createImageData(w, h); gd = gImg.data; }
+
+  const a = S.game.sharp, row = w * 4;
+  const th = hexHue(e.target), tIn = e.tol * 0.55, tOut = e.tol, allHue = e.tol >= 180;
+  const nh = hexHue(e.color), ms = e.minSat;
+  const cx = f.x * w, cy = f.y * h, R = f.r * w, R0 = R * 0.7;
+  const useRegion = e.region;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * row + x * 4;
+      let r = d[i], g = d[i + 1], b = d[i + 2];
+      if (a > 0 && x > 0 && y > 0 && x < w - 1 && y < h - 1) {
+        r += a * (4 * r - d[i - row] - d[i + row] - d[i - 4] - d[i + 4]);
+        g += a * (4 * g - d[i - row + 1] - d[i + row + 1] - d[i - 3] - d[i + 5]);
+        b += a * (4 * b - d[i - row + 2] - d[i + row + 2] - d[i - 2] - d[i + 6]);
+        r = r < 0 ? 0 : r > 255 ? 255 : r; g = g < 0 ? 0 : g > 255 ? 255 : g; b = b < 0 ? 0 : b > 255 ? 255 : b;
+      }
+      let wgt = 0, hh = 0, sv = 0, vv = 0;
+      if (e.on) {
+        const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        vv = mx / 255; sv = mx ? (mx - mn) / mx : 0;
+        if (vv > 0.18 && sv > ms - 0.12) {
+          const dd = mx - mn;
+          if (dd) { hh = mx === r ? ((g - b) / dd) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4; hh *= 60; if (hh < 0) hh += 360; }
+          let dh = Math.abs(hh - th); if (dh > 180) dh = 360 - dh;
+          wgt = (allHue ? 1 : 1 - ss(tIn, tOut, dh)) * ss(ms - 0.12, ms + 0.12, sv) * ss(0.18, 0.42, vv);
+          if (useRegion && wgt > 0) wgt *= 1 - ss(R0, R, Math.hypot(x - cx, y - cy));
+        }
+      }
+      if (e.preview && e.on) {
+        const gr = (r * 0.3 + g * 0.59 + b * 0.11) * 0.4;
+        o[i] = gr + (255 - gr) * wgt; o[i + 1] = gr * (1 - wgt) + 40 * wgt; o[i + 2] = gr * (1 - wgt) + 90 * wgt;
+      } else if (wgt > 0.001) {
+        // rebuild the pixel in HSV with boosted sat/value (and optional new hue)
+        const H2 = (e.recolor ? nh : hh) / 60, S2 = Math.min(1, sv * e.sat), V2 = Math.min(1, vv * e.bright) * 255;
+        const k = Math.floor(H2) % 6, fr = H2 - Math.floor(H2);
+        const p = V2 * (1 - S2), q = V2 * (1 - fr * S2), t = V2 * (1 - (1 - fr) * S2);
+        const nr = [V2, q, p, p, t, V2][k], ng = [t, V2, V2, q, p, p][k], nb = [p, p, t, V2, V2, q][k];
+        o[i] = r + (nr - r) * wgt; o[i + 1] = g + (ng - g) * wgt; o[i + 2] = b + (nb - b) * wgt;
+        if (gd) { gd[i] = nr * wgt; gd[i + 1] = ng * wgt; gd[i + 2] = nb * wgt; }
+      } else { o[i] = r; o[i + 1] = g; o[i + 2] = b; }
+      o[i + 3] = 255;
+      if (gd) gd[i + 3] = 255;
+    }
+  }
+  gx.putImageData(out, 0, 0);
+  if (gd) glowCache.x.putImageData(gImg, 0, 0);
+}
+
+// ---------- render ----------
+let queued = false;
+function schedule() { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; render(); }); } }
+
+function focusCenter() {
+  if (!gameRect) return { x: W / 2, y: H / 2, r: W * 0.2 };
+  return { x: gameRect.dx + S.focus.x * gameRect.dw, y: gameRect.dy + S.focus.y * gameRect.dh, r: S.focus.r * gameRect.dw };
+}
+
+function render(forExport = false) {
+  const g = S.game, f = S.focus, e = S.eff, st = S.style;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
+  ctx.fillStyle = '#07070a'; ctx.fillRect(0, 0, W, H);
+
+  if (gameImg) {
+    ensureGame();
+    const s = Math.max(W / gameImg.width, H / gameImg.height) * g.zoom;
+    const dw = gameImg.width * s, dh = gameImg.height * s;
+    const dx = (W - dw) / 2 + g.ox, dy = (H - dh) / 2 + g.oy;
+    gameRect = { dx, dy, dw, dh };
+    ctx.filter = `brightness(${g.bright}) contrast(${g.contrast}) saturate(${g.sat})`;
+    ctx.drawImage(gameCache.c, dx, dy, dw, dh);
+    ctx.filter = 'none';
+
+    // glow comes only from the selected effect pixels
+    if (hasGlow) {
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = e.glow; ctx.filter = `blur(${e.glowSize}px)`;
+      ctx.drawImage(glowCache.c, dx, dy, dw, dh);
+      ctx.globalAlpha = e.glow * 0.6; ctx.filter = `blur(${e.glowSize * 3}px)`;
+      ctx.drawImage(glowCache.c, dx, dy, dw, dh);
+      ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // spotlight: darken everything away from the focus point
+    if (f.vignette > 0) {
+      const fc = focusCenter();
+      const gr = ctx.createRadialGradient(fc.x, fc.y, fc.r * 0.8, fc.x, fc.y, fc.r + W * (0.25 + 0.75 * f.soft));
+      for (let k = 0; k <= 6; k++) { const t = k / 6; gr.addColorStop(t, `rgba(0,0,0,${f.vignette * t * t * (3 - 2 * t)})`); }
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    }
+  } else gameRect = null;
+
+  drawSpeed();
+  if (charImg) drawCharBack();
+  drawTone();
+  if (charImg) drawCharFront(); else charBox = null;
+  drawCA();
+  if (st.grain > 0) {
+    ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = st.grain;
+    ctx.drawImage(getNoise().c, 0, 0);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  if (st.letterbox > 0) {
+    ctx.fillStyle = '#000'; const bh = Math.round(H * st.letterbox);
+    ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh);
+  }
+  ctx.restore();
+
+  layerBoxes.clear();
+  for (const L of S.layers) if (L.visible !== false) drawLayer(L, forExport);
+
+  if (!forExport) drawOverlays();
+  document.getElementById('empty').style.display = gameImg || charImg || S.layers.length ? 'none' : 'grid';
+}
+
+function drawOverlays() {
+  ctx.save();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.setLineDash([8, 6]);
+  if (gameRect && tool !== 'move') {
+    const fc = focusCenter();
+    ctx.beginPath(); ctx.arc(fc.x, fc.y, fc.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]); ctx.beginPath();
+    ctx.moveTo(fc.x - 8, fc.y); ctx.lineTo(fc.x + 8, fc.y); ctx.moveTo(fc.x, fc.y - 8); ctx.lineTo(fc.x, fc.y + 8); ctx.stroke();
+  }
+  const b = tool === 'move' && selectedId && layerBoxes.get(selectedId);
+  if (b) {
+    ctx.setLineDash([6, 5]); ctx.strokeStyle = '#e8b44c';
+    ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
+  }
+  ctx.restore();
+}
+
+// ---------- textures ----------
+function drawSpeed() {
+  const st = S.style;
+  if (st.speed <= 0 || st.speedCount <= 0) return;
+  const fc = focusCenter(), rnd = mulberry32(st.seed), outer = Math.hypot(W, H);
+  const inner = fc.r * st.speedInner;
+  ctx.save();
+  ctx.fillStyle = st.speedColor; ctx.globalAlpha = st.speed;
+  ctx.beginPath();
+  for (let i = 0; i < st.speedCount; i++) {
+    const a = rnd() * Math.PI * 2, r0 = inner * (1 + rnd() * 0.9);
+    const da = st.speedWidth * (0.4 + rnd() * 1.6) / outer;
+    ctx.moveTo(fc.x + Math.cos(a) * r0, fc.y + Math.sin(a) * r0);
+    ctx.lineTo(fc.x + Math.cos(a - da) * outer, fc.y + Math.sin(a - da) * outer);
+    ctx.lineTo(fc.x + Math.cos(a + da) * outer, fc.y + Math.sin(a + da) * outer);
+    ctx.closePath();
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
+// manga screentone: light dots inside dark areas
+function drawTone() {
+  const st = S.style;
+  if (st.tone <= 0) return;
+  const img = ctx.getImageData(0, 0, W, H).data, sp = st.toneSize;
+  const area = st.toneArea === 'panel' && !(charImg && isPanel()) ? 'all' : st.toneArea;
+  const fc = focusCenter();
+  ctx.save();
+  if (area === 'panel') { panelPath(ctx); ctx.clip(); }
+  ctx.beginPath();
+  for (let row = 0, y = sp / 2; y < H; y += sp * 0.866, row++) {
+    for (let x = row % 2 ? sp / 2 : 0; x < W; x += sp) {
+      const i = ((y | 0) * W + (x | 0)) * 4;
+      const lum = (img[i] * 0.3 + img[i + 1] * 0.59 + img[i + 2] * 0.11) / 255;
+      let k = 1 - lum / 0.5;
+      if (k <= 0) continue;
+      if (area === 'outside') k *= ss(fc.r * 0.8, fc.r * 1.8, Math.hypot(x - fc.x, y - fc.y));
+      if (k <= 0.03) continue;
+      const r = sp * 0.48 * Math.sqrt(k);
+      ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2);
+    }
+  }
+  ctx.fillStyle = st.toneColor; ctx.globalAlpha = st.tone; ctx.fill();
+  ctx.restore();
+}
+
+function drawCA() {
+  const a = S.style.ca;
+  if (a <= 0) return;
+  for (const [o, col] of [[caR, '#f00'], [caG, '#0f0'], [caB, '#00f']]) {
+    const x = size(o, W, H);
+    x.drawImage(cv, 0, 0);
+    x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, W, H);
+  }
+  ctx.save();
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+  const sr = 1 + 2 * a / W, sg = 1 + a / W;
+  ctx.drawImage(caR.c, W * (1 - sr) / 2, H * (1 - sr) / 2, W * sr, H * sr);
+  ctx.drawImage(caG.c, W * (1 - sg) / 2, H * (1 - sg) / 2, W * sg, H * sg);
+  ctx.drawImage(caB.c, 0, 0);
+  ctx.restore();
+}
+
+let noise = null;
+function getNoise() {
+  if (noise) return noise;
+  noise = off();
+  const x = size(noise, W, H), id = x.createImageData(W, H), d = id.data, rnd = mulberry32(99);
+  for (let i = 0; i < d.length; i += 4) { d[i] = d[i + 1] = d[i + 2] = 128 + (rnd() - 0.5) * 255; d[i + 3] = 255; }
+  x.putImageData(id, 0, 0);
+  return noise;
+}
+
+// ---------- character ----------
+const isPanel = () => S.ch.mode === 'slash' || S.ch.mode === 'popout';
+function slashX(y) { const c = S.ch; return c.slashX * W + (y - H / 2) * Math.tan(c.slashAngle * Math.PI / 180); }
+function panelPath(p) {
+  const c = S.ch;
+  if (c.mode === 'slash') {
+    const x0 = slashX(-10), x1 = slashX(H + 10);
+    p.beginPath();
+    if (c.panelSide === 'right') { p.moveTo(x0, -10); p.lineTo(W + 10, -10); p.lineTo(W + 10, H + 10); p.lineTo(x1, H + 10); }
+    else { p.moveTo(-10, -10); p.lineTo(x0, -10); p.lineTo(x1, H + 10); p.lineTo(-10, H + 10); }
+    p.closePath();
+  } else rr(p, c.pX * W, c.pY * H, c.pW * W, c.pH * H, c.radius);
+}
+
+function fadeGrad(p, x0, y0, x1, y1) {
+  const gr = p.createLinearGradient(x0, y0, x1, y1);
+  for (let k = 0; k <= 6; k++) { const t = k / 6; gr.addColorStop(t, `rgba(0,0,0,${(1 - t) * (1 - t)})`); }
+  return gr;
+}
+
+function buildPiece() {
+  const c = S.ch, iw = charImg.width, ih = charImg.height;
+  let pw, ph, p;
+  const filt = `brightness(${c.bright}) contrast(${c.contrast}) saturate(${c.sat})`;
+  if (c.mode !== 'frame') {
+    const s = H * c.scale / ih;
+    pw = Math.round(iw * s); ph = Math.round(ih * s);
+    p = size(piece, pw, ph);
+    p.filter = filt;
+    if (c.flip) { p.translate(pw, 0); p.scale(-1, 1); }
+    p.drawImage(charImg, 0, 0, pw, ph);
+    p.setTransform(1, 0, 0, 1, 0, 0);
+  } else {
+    pw = Math.round(c.frameW * c.scale); ph = Math.round(c.frameH * c.scale);
+    p = size(piece, pw, ph);
+    rr(p, 0, 0, pw, ph, c.radius * c.scale); p.save(); p.clip();
+    const s = Math.max(pw / iw, ph / ih) * c.innerZoom;
+    const dw = iw * s, dh = ih * s;
+    p.filter = filt;
+    if (c.flip) { p.translate(pw, 0); p.scale(-1, 1); }
+    p.drawImage(charImg, (pw - dw) / 2 + c.innerX * pw * (c.flip ? -1 : 1), (ph - dh) / 2 + c.innerY * ph, dw, dh);
+    p.restore();
+    if (c.border > 0) {
+      p.filter = 'none'; p.lineWidth = c.border * 2; p.strokeStyle = c.glowColor;
+      rr(p, 0, 0, pw, ph, c.radius * c.scale); p.save(); p.clip(); p.stroke(); p.restore();
+    }
+  }
+  p.filter = 'none';
+
+  // colored light on the character
+  if (c.tint > 0) {
+    const m = size(mask, pw, ph); m.drawImage(piece.c, 0, 0);
+    p.globalCompositeOperation = 'soft-light'; p.globalAlpha = c.tint;
+    p.fillStyle = c.tintColor; p.fillRect(0, 0, pw, ph);
+    p.globalAlpha = 1; p.globalCompositeOperation = 'destination-in';
+    p.drawImage(mask.c, 0, 0);
+    p.globalCompositeOperation = 'source-over';
+  }
+
+  // soft edges; the side facing the gameplay can fade further
+  const innerLeft = c.x > W / 2;
+  const L = Math.max(c.fadeEdge, innerLeft ? c.fadeInner : 0), Rt = Math.max(c.fadeEdge, innerLeft ? 0 : c.fadeInner);
+  const T = c.fadeEdge, B = Math.max(c.fadeEdge, c.fadeBottom);
+  p.globalCompositeOperation = 'destination-out';
+  if (L > 0) { p.fillStyle = fadeGrad(p, 0, 0, pw * L, 0); p.fillRect(0, 0, pw, ph); }
+  if (Rt > 0) { p.fillStyle = fadeGrad(p, pw, 0, pw * (1 - Rt), 0); p.fillRect(0, 0, pw, ph); }
+  if (T > 0) { p.fillStyle = fadeGrad(p, 0, 0, 0, ph * T); p.fillRect(0, 0, pw, ph); }
+  if (B > 0) { p.fillStyle = fadeGrad(p, 0, ph, 0, ph * (1 - B)); p.fillRect(0, 0, pw, ph); }
+  p.globalCompositeOperation = 'source-over';
+  return { pw, ph };
+}
+
+function drawCharBack() {
+  const c = S.ch;
+  pdim = buildPiece();
+  const { pw, ph } = pdim;
+  // dark side + dark backdrop so the character sits in a black pocket
+  if (c.sideDark > 0) {
+    const right = c.x > W / 2;
+    const gr = ctx.createLinearGradient(right ? W : 0, 0, right ? W * 0.25 : W * 0.75, 0);
+    for (let k = 0; k <= 6; k++) { const t = k / 6; gr.addColorStop(t, `rgba(0,0,0,${c.sideDark * (1 - t) * (1 - t)})`); }
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+  }
+  if (c.backdrop > 0) {
+    const R = Math.max(pw, ph) * 0.62 * c.backdropSize;
+    const gr = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, R);
+    for (let k = 0; k <= 6; k++) { const t = k / 6; gr.addColorStop(t, `rgba(0,0,0,${c.backdrop * (1 - t * t) ** 1.5})`); }
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+  }
+  if (isPanel()) {
+    ctx.save();
+    panelPath(ctx);
+    const gr = ctx.createLinearGradient(0, 0, W, H);
+    gr.addColorStop(0, c.panelC1); gr.addColorStop(1, c.panelC2);
+    ctx.fillStyle = gr; ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawPanelLine() {
+  const c = S.ch;
+  if (c.lineW <= 0) return;
+  ctx.save();
+  if (c.mode === 'slash') { ctx.beginPath(); ctx.moveTo(slashX(-10), -10); ctx.lineTo(slashX(H + 10), H + 10); }
+  else rr(ctx, c.pX * W, c.pY * H, c.pW * W, c.pH * H, c.radius);
+  ctx.strokeStyle = c.lineColor; ctx.lineWidth = c.lineW;
+  ctx.shadowColor = c.lineColor; ctx.shadowBlur = c.lineGlow;
+  ctx.stroke(); if (c.lineGlow > 0) ctx.stroke();
+  ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = Math.max(1, c.lineW * 0.3);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCharFront() {
+  const c = S.ch, { pw, ph } = pdim;
+  const x = Math.round(c.x - pw / 2), y = Math.round(c.y - ph / 2);
+  charBox = { x, y, w: pw, h: ph };
+  const OFF = W * 4; // draw off-canvas and shift only the shadow back in
+
+  if (isPanel()) drawPanelLine();
+  ctx.save();
+  if (isPanel()) {
+    // clip to the panel, plus everything above the pop line so the head can break out
+    panelPath(ctx);
+    const pop = c.mode === 'popout' ? c.pY * H : c.popOut ? c.popY * H : 0;
+    if (pop > 0) ctx.rect(-10, -10, W + 20, pop + 10);
+    ctx.clip();
+  }
+  if (c.shadow > 0) {
+    ctx.save();
+    ctx.shadowColor = `rgba(0,0,0,${c.shadow})`; ctx.shadowBlur = 70; ctx.shadowOffsetX = OFF;
+    ctx.drawImage(piece.c, x - OFF, y); ctx.drawImage(piece.c, x - OFF, y);
+    ctx.restore();
+  }
+  if (c.glowStrength > 0 && c.glow > 0) {
+    ctx.save();
+    ctx.shadowColor = c.glowColor; ctx.shadowBlur = c.glow; ctx.shadowOffsetX = OFF;
+    for (let i = 0; i < c.glowStrength; i++) ctx.drawImage(piece.c, x - OFF, y);
+    ctx.restore();
+  }
+  if (c.rim !== 0) {
+    const s = size(sil, pw, ph);
+    s.drawImage(piece.c, 0, 0);
+    s.globalCompositeOperation = 'source-in'; s.fillStyle = c.glowColor; s.fillRect(0, 0, pw, ph);
+    ctx.save(); ctx.filter = 'blur(1.5px)';
+    ctx.drawImage(sil.c, x + c.rim, y - Math.abs(c.rim) * 0.4);
+    ctx.restore();
+  }
+  ctx.globalCompositeOperation = c.blend;
+  ctx.drawImage(piece.c, x, y);
+  ctx.restore();
+}
+
+// ---------- layers ----------
+function drawLayer(L, forExport) {
+  if (L.type === 'text') drawText(L);
+  else if (L.type === 'image') drawImageLayer(L);
+  else if (L.type === 'items') drawItems(L, forExport);
+}
+
+function drawText(L) {
+  const lines = ((L.upper ? L.text.toUpperCase() : L.text) || ' ').split('\n');
+  ensureFont(`${L.weight} ${L.size}px "${L.font}"`);
+  ctx.save();
+  ctx.font = `${L.weight} ${L.size}px "${L.font}", "Kanit", sans-serif`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = L.spacing + 'px';
+  const lh = L.size * L.lineH, total = lh * lines.length;
+  const w = Math.max(...lines.map(t => ctx.measureText(t).width));
+  const ax = L.align === 'left' ? 0 : L.align === 'right' ? -w : -w / 2;
+  layerBoxes.set(L.id, { x: L.x + ax, y: L.y - total / 2, w, h: total });
+
+  ctx.translate(L.x, L.y);
+  ctx.rotate(L.rot * Math.PI / 180);
+  ctx.transform(1, 0, Math.tan(L.skew * Math.PI / 180), 1, 0, 0);
+  ctx.textAlign = L.align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  if (L.bg > 0) {
+    const p = L.bgPad;
+    ctx.globalAlpha = L.bg; ctx.fillStyle = L.bgColor;
+    ctx.fillRect(ax - p, -total / 2 - p * 0.5, w + 2 * p, total + p);
+    ctx.globalAlpha = 1;
+  }
+  const ys = lines.map((_, i) => -total / 2 + lh * (i + 0.5));
+  const each = fn => lines.forEach((t, i) => fn(t, ys[i]));
+  const outer = L.strokeW + L.stroke2W;
+  if (L.shadow > 0) {
+    ctx.save();
+    ctx.shadowColor = `rgba(0,0,0,${L.shadow})`; ctx.shadowBlur = L.size * 0.18; ctx.shadowOffsetY = L.size * 0.07;
+    ctx.fillStyle = ctx.strokeStyle = '#000'; ctx.lineWidth = outer * 2;
+    each((t, y) => { if (outer > 0) ctx.strokeText(t, 0, y); ctx.fillText(t, 0, y); });
+    ctx.restore();
+  }
+  if (L.glow > 0) {
+    ctx.save();
+    ctx.shadowColor = L.glowColor; ctx.shadowBlur = L.glow;
+    ctx.fillStyle = ctx.strokeStyle = L.glowColor; ctx.lineWidth = outer * 2;
+    for (let k = 0; k < 2; k++) each((t, y) => { if (outer > 0) ctx.strokeText(t, 0, y); ctx.fillText(t, 0, y); });
+    ctx.restore();
+  }
+  if (L.stroke2W > 0) { ctx.strokeStyle = L.stroke2; ctx.lineWidth = outer * 2; each((t, y) => ctx.strokeText(t, 0, y)); }
+  if (L.strokeW > 0) { ctx.strokeStyle = L.stroke; ctx.lineWidth = L.strokeW * 2; each((t, y) => ctx.strokeText(t, 0, y)); }
+  each((t, y) => {
+    if (L.grad) {
+      const gr = ctx.createLinearGradient(0, y - L.size * 0.4, 0, y + L.size * 0.4);
+      gr.addColorStop(0, L.fill1); gr.addColorStop(1, L.fill2); ctx.fillStyle = gr;
+    } else ctx.fillStyle = L.fill1;
+    ctx.fillText(t, 0, y);
+  });
+  ctx.restore();
+}
+
+function drawImageLayer(L) {
+  const im = store.get(L.imgId);
+  if (!im) return;
+  const h = L.size, w = L.round ? h : h * im.width / im.height;
+  layerBoxes.set(L.id, { x: L.x - w / 2, y: L.y - h / 2, w, h });
+  const o = size(tmp, Math.round(w), Math.round(h));
+  if (L.round) { o.beginPath(); o.arc(w / 2, h / 2, h / 2, 0, Math.PI * 2); o.clip(); }
+  else if (L.radius > 0) { rr(o, 0, 0, w, h, L.radius); o.clip(); }
+  const s = Math.max(w / im.width, h / im.height);
+  o.drawImage(im, (w - im.width * s) / 2, (h - im.height * s) / 2, im.width * s, im.height * s);
+  ctx.save();
+  ctx.translate(L.x, L.y); ctx.rotate(L.rot * Math.PI / 180);
+  ctx.globalAlpha = L.opacity;
+  if (L.shadow > 0) { ctx.shadowColor = `rgba(0,0,0,${L.shadow})`; ctx.shadowBlur = h * 0.2; ctx.shadowOffsetY = h * 0.05; }
+  ctx.drawImage(tmp.c, -w / 2, -h / 2, w, h);
+  ctx.shadowColor = 'transparent';
+  if (L.border > 0) {
+    if (L.round) { ctx.beginPath(); ctx.arc(0, 0, h / 2, 0, Math.PI * 2); }
+    else rr(ctx, -w / 2, -h / 2, w, h, L.radius);
+    ctx.lineWidth = L.border; ctx.strokeStyle = L.borderColor; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawItems(L, forExport) {
+  const ims = L.imgIds.map(id => store.get(id)).filter(Boolean);
+  if (!ims.length && forExport) return;
+  const cnt = ims.length || 6, s = L.slot, g = L.gap, row = L.dir === 'row';
+  const gw = row ? cnt * s + (cnt - 1) * g : s, gh = row ? s : cnt * s + (cnt - 1) * g;
+  const lab = L.label ? L.labelSize * 1.4 : 0, pad = s * 0.18;
+  const tw = gw + pad * 2, th = gh + pad * 2 + lab;
+  const x0 = L.x - tw / 2, y0 = L.y - th / 2;
+  layerBoxes.set(L.id, { x: x0, y: y0, w: tw, h: th });
+  ctx.save();
+  if (L.plate > 0) { rr(ctx, x0, y0, tw, th, L.radius + pad); ctx.fillStyle = `rgba(0,0,0,${L.plate})`; ctx.fill(); }
+  if (L.label) {
+    ensureFont(`${L.labelSize}px "${L.font}"`);
+    ctx.font = `${L.labelSize}px "${L.font}", sans-serif`;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = L.labelColor;
+    ctx.fillText(L.label, L.x, y0 + pad * 0.6 + lab / 2);
+  }
+  for (let i = 0; i < cnt; i++) {
+    const sx = x0 + pad + (row ? i * (s + g) : 0), sy = y0 + pad + lab + (row ? 0 : i * (s + g));
+    const im = ims[i];
+    if (im) {
+      ctx.save();
+      rr(ctx, sx, sy, s, s, L.radius); ctx.clip();
+      const k = Math.max(s / im.width, s / im.height);
+      ctx.drawImage(im, sx + (s - im.width * k) / 2, sy + (s - im.height * k) / 2, im.width * k, im.height * k);
+      ctx.restore();
+      if (L.border > 0) { rr(ctx, sx, sy, s, s, L.radius); ctx.lineWidth = L.border; ctx.strokeStyle = L.borderColor; ctx.stroke(); }
+    } else {
+      rr(ctx, sx, sy, s, s, L.radius); ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  if (!ims.length) {
+    ctx.font = '14px "IBM Plex Sans Thai", system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.textAlign = 'center';
+    ctx.fillText('ลากรูปไอเท็มมาวางที่นี่', L.x, y0 + th + 16);
+  }
+  ctx.restore();
+}
+
+// ---------- undo / redo ----------
+let hist = [], hi = -1;
+function commit() {
+  const sn = { s: JSON.stringify(S), g: gameImg, c: charImg };
+  const cur = hist[hi];
+  if (cur && cur.s === sn.s && cur.g === sn.g && cur.c === sn.c) return;
+  hist = hist.slice(0, hi + 1); hist.push(sn);
+  if (hist.length > 150) hist.shift();
+  hi = hist.length - 1; updUndo();
+}
+function restore(sn) {
+  const o = JSON.parse(sn.s);
+  for (const k of Object.keys(o)) if (k !== 'layers') Object.assign(S[k], o[k]);
+  S.layers = o.layers;
+  if (!S.layers.some(l => l.id === selectedId)) selectedId = null;
+  gameImg = sn.g; charImg = sn.c;
+  updateSlots(); renderLayerUI(); syncUI(); render(); updUndo();
+}
+function undo() { if (hi > 0) restore(hist[--hi]); }
+function redo() { if (hi < hist.length - 1) restore(hist[++hi]); }
+function updUndo() {
+  document.getElementById('undoBtn').disabled = hi <= 0;
+  document.getElementById('redoBtn').disabled = hi >= hist.length - 1;
+}
+document.getElementById('undoBtn').onclick = undo;
+document.getElementById('redoBtn').onclick = redo;
+let commitTimer = 0;
+const commitSoon = () => { clearTimeout(commitTimer); commitTimer = setTimeout(commit, 350); };
+
+// ---------- loading ----------
+function hasTransparency(im) {
+  if (im._alpha !== undefined) return im._alpha;
+  const o = off(), x = size(o, 64, 64);
+  x.drawImage(im, 0, 0, 64, 64);
+  const d = x.getImageData(0, 0, 64, 64).data;
+  let t = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] < 245) t++;
+  return im._alpha = t > 64 * 64 * 0.03;
+}
+
+function placeChar(side) {
+  const c = S.ch, right = side !== 'left';
+  if (c.mode === 'slash') {
+    if ((c.panelSide === 'right') !== right) { c.slashX = 1 - c.slashX; c.slashAngle = -c.slashAngle; }
+    c.panelSide = right ? 'right' : 'left';
+    c.x = right ? (c.slashX * W + W) / 2 + W * 0.03 : c.slashX * W / 2 - W * 0.03; c.y = H * 0.58;
+  } else if (c.mode === 'popout') {
+    if ((c.pX + c.pW / 2 > 0.5) !== right) c.pX = 1 - c.pX - c.pW;
+    c.x = (c.pX + c.pW / 2) * W; c.y = H * 0.62;
+  } else if (c.mode !== 'frame') {
+    const w = charImg.width * (H * c.scale / charImg.height);
+    c.x = right ? W - w * 0.42 : w * 0.42; c.y = H * 0.58;
+  } else {
+    c.x = right ? W - c.frameW * c.scale / 2 : c.frameW * c.scale / 2;
+    c.y = c.frameH * c.scale / 2;
+  }
+}
+const charSide = () => S.ch.mode === 'slash' ? S.ch.panelSide : S.ch.x > W / 2 ? 'right' : 'left';
+
+function setMode(mode) {
+  const side = charSide();
+  S.ch.mode = mode;
+  Object.assign(S.ch, MODE_DEFAULTS[mode]);
+  if (mode === 'frame' && charImg) {
+    S.ch.scale = 1; S.ch.frameH = 420; S.ch.frameW = Math.min(640, Math.round(420 * charImg.width / charImg.height));
+  } else if (mode !== 'frame') S.ch.scale = mode === 'popout' ? 0.95 : 1.12;
+  if (charImg) placeChar(side);
+  if (mode === 'popout' && charImg && !hasTransparency(charImg)) toast('แบบทะลุกรอบต้องใช้ภาพ PNG ที่ตัดพื้นหลังแล้ว');
+}
+
+function updateSlots() {
+  for (const [slot, im, label] of [['game', gameImg, 'ภาพเกม'], ['char', charImg, 'ตัวละคร']]) {
+    const el = document.querySelector(`.slot[data-slot="${slot}"]`);
+    const th = el.querySelector('.thumb');
+    th.style.backgroundImage = im ? `url("${im.src}")` : '';
+    th.innerHTML = im ? '' : icon(slot === 'game' ? 'image' : 'user');
+    el.querySelector('b').textContent = label;
+    el.querySelector('small').textContent = !im ? 'ยังไม่ได้เลือก — คลิกหรือลากไฟล์มาวาง'
+      : `${im.naturalWidth}×${im.naturalHeight}` + (slot === 'char' ? (hasTransparency(im) ? ' · พื้นหลังโปร่งใส' : ' · มีพื้นหลัง') : '') + ' · คลิกเพื่อเปลี่ยน';
+  }
+}
+
+async function loadFile(file, slot) {
+  const im = await loadImageFile(file);
+  if (!im) return;
+  if (slot === 'game') {
+    gameImg = im; Object.assign(S.game, { zoom: 1, ox: 0, oy: 0 });
+    Object.assign(S.focus, { x: 0.5, y: 0.5 });
+  } else {
+    charImg = im;
+    Object.assign(S.ch, { innerX: 0, innerY: 0, innerZoom: 1 });
+    const transparent = hasTransparency(im);
+    // keep a panel style if one is active, otherwise pick by image type
+    if (!isPanel() || (S.ch.mode === 'popout' && !transparent)) setMode(transparent ? 'cutout' : 'soft');
+    else placeChar(charSide());
+  }
+  updateSlots(); syncUI(); render(); commit();
+}
+
+async function addItemFiles(L, files) {
+  for (const f of files) { const im = await loadImageFile(f); if (im) L.imgIds.push(im._id); }
+  renderLayerList(); render(); commit();
+}
+
+function filePicker(multiple, cb) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = multiple;
+  inp.onchange = () => { if (inp.files.length) cb([...inp.files]); };
+  inp.click();
+}
+document.querySelectorAll('[data-slot]').forEach(zone => {
+  const slot = zone.dataset.slot;
+  zone.addEventListener('click', () => filePicker(false, fs => loadFile(fs[0], slot)));
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); zone.classList.remove('over'); loadFile(e.dataTransfer.files[0], slot); });
+});
+cv.addEventListener('dragover', e => e.preventDefault());
+cv.addEventListener('drop', e => {
+  e.preventDefault();
+  const files = [...e.dataTransfer.files];
+  const L = layerAt(toCanvas(e));
+  if (L && L.type === 'items') addItemFiles(L, files);
+  else loadFile(files[0], gameImg ? 'char' : 'game');
+});
+window.addEventListener('paste', e => {
+  if (isTyping()) return;
+  const item = [...e.clipboardData.items].find(i => i.type.startsWith('image/'));
+  if (item) loadFile(item.getAsFile(), gameImg ? 'char' : 'game');
+});
+
+// ---------- tools & canvas interaction ----------
+const HINTS = {
+  move: 'ลากเพื่อย้าย · <kbd>สกรอลล์</kbd> ขยาย/ย่อ · <kbd>Shift</kbd>+ลาก เลื่อนภาพในกรอบ',
+  pick: 'คลิกที่เอฟเฟกต์สกิลของแชมป์ในภาพ เพื่อเลือกสีที่จะปรับ',
+  focus: 'คลิกที่แชมป์เพื่อวางจุดโฟกัส · <kbd>สกรอลล์</kbd> ปรับขนาดวง'
+};
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  cv.classList.toggle('pick', t === 'pick'); cv.classList.toggle('focus', t === 'focus');
+  document.getElementById('hint').innerHTML = HINTS[t];
+  if (t !== 'move') setTab('game');
+  render();
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+
+function isTyping() {
+  const a = document.activeElement;
+  return a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type === 'text'));
+}
+const selLayer = () => S.layers.find(l => l.id === selectedId);
+
+window.addEventListener('keydown', e => {
+  if (isTyping()) return;
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || document.activeElement.tagName === 'SELECT') return;
+  const L = selLayer();
+  if (L && (k === 'delete' || k === 'backspace')) { e.preventDefault(); removeLayer(L.id); return; }
+  if (L && k.startsWith('arrow')) {
+    e.preventDefault();
+    const st = e.shiftKey ? 10 : 1;
+    if (k === 'arrowleft') L.x -= st; if (k === 'arrowright') L.x += st;
+    if (k === 'arrowup') L.y -= st; if (k === 'arrowdown') L.y += st;
+    schedule(); commitSoon(); return;
+  }
+  if (k === 'v') setTool('move'); else if (k === 'i') setTool('pick'); else if (k === 'f') setTool('focus');
+  else if (k === '?') document.getElementById('help').showModal();
+});
+document.getElementById('helpBtn').onclick = () => document.getElementById('help').showModal();
+
+function toCanvas(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+}
+const inBox = (b, p) => b && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+const onChar = p => inBox(charBox, p);
+function layerAt(p) {
+  for (let i = S.layers.length - 1; i >= 0; i--) {
+    const L = S.layers[i];
+    if (L.visible !== false && inBox(layerBoxes.get(L.id), p)) return L;
+  }
+  return null;
+}
+const toGame = p => gameRect && { u: (p.x - gameRect.dx) / gameRect.dw, v: (p.y - gameRect.dy) / gameRect.dh };
+
+function pickAt(p) {
+  const q = toGame(p);
+  if (!q || q.u < 0 || q.u > 1 || q.v < 0 || q.v > 1) return;
+  const { w, h, d } = baseData(gameImg);
+  const cx = Math.round(q.u * (w - 1)), cy = Math.round(q.v * (h - 1));
+  // take the most saturated pixel nearby so a click on a thin skill line still lands
+  let best = null, bs = -1;
+  for (let y = Math.max(0, cy - 3); y <= Math.min(h - 1, cy + 3); y++)
+    for (let x = Math.max(0, cx - 3); x <= Math.min(w - 1, cx + 3); x++) {
+      const i = (y * w + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      const mx = Math.max(r, g, b), sc = mx ? (mx - Math.min(r, g, b)) / mx * mx : 0;
+      if (sc > bs) { bs = sc; best = [r, g, b]; }
+    }
+  S.eff.target = rgbHex(...best); S.eff.on = true;
+  setTab('game');
+  syncUI(); render(); commit();
+}
+
+let drag = null;
+cv.addEventListener('pointerdown', e => {
+  const p = toCanvas(e);
+  if (tool === 'pick') { if (gameImg) pickAt(p); return; }
+  if (tool === 'focus') {
+    const q = toGame(p); if (!q) return;
+    drag = { target: 'focus' }; S.focus.x = q.u; S.focus.y = q.v; schedule();
+  } else {
+    const L = layerAt(p);
+    if (L) {
+      if (selectedId !== L.id) { selectedId = L.id; renderLayerUI(); }
+      setTab('text');
+      drag = { target: 'layer', L, sx: p.x, sy: p.y, ox: L.x, oy: L.y };
+    } else {
+      const target = onChar(p) ? (e.shiftKey && S.ch.mode === 'frame' ? 'inner' : 'ch') : 'game';
+      const c = S.ch, g = S.game;
+      drag = { target, sx: p.x, sy: p.y,
+        ox: target === 'ch' ? c.x : target === 'inner' ? c.innerX : g.ox,
+        oy: target === 'ch' ? c.y : target === 'inner' ? c.innerY : g.oy };
+    }
+  }
+  cv.setPointerCapture(e.pointerId); cv.classList.add('dragging');
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const p = toCanvas(e);
+  if (drag.target === 'focus') { const q = toGame(p); S.focus.x = q.u; S.focus.y = q.v; schedule(); return; }
+  const dx = p.x - drag.sx, dy = p.y - drag.sy;
+  if (drag.target === 'layer') { drag.L.x = drag.ox + dx; drag.L.y = drag.oy + dy; }
+  else if (drag.target === 'ch') { S.ch.x = drag.ox + dx; S.ch.y = drag.oy + dy; }
+  else if (drag.target === 'inner') { S.ch.innerX = drag.ox + dx / charBox.w; S.ch.innerY = drag.oy + dy / charBox.h; }
+  else { S.game.ox = drag.ox + dx; S.game.oy = drag.oy + dy; }
+  schedule();
+});
+const endDrag = () => { if (drag) { drag = null; cv.classList.remove('dragging'); syncUI(); commit(); } };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const k = e.deltaY < 0 ? 1.05 : 1 / 1.05, p = toCanvas(e);
+  const L = tool === 'move' && layerAt(p);
+  if (tool === 'focus') S.focus.r = Math.min(0.8, Math.max(0.03, S.focus.r * k));
+  else if (L) {
+    const key = L.type === 'items' ? 'slot' : 'size';
+    L[key] = Math.min(400, Math.max(10, L[key] * k));
+  } else if (tool === 'move' && onChar(p)) {
+    if (e.shiftKey && S.ch.mode === 'frame') S.ch.innerZoom = Math.min(4, Math.max(1, S.ch.innerZoom * k));
+    else S.ch.scale = Math.min(3, Math.max(0.2, S.ch.scale * k));
+  } else if (tool === 'move') S.game.zoom = Math.min(4, Math.max(1, S.game.zoom * k));
+  syncUI(); schedule(); commitSoon();
+}, { passive: false });
+
+// ---------- UI kit ----------
+let B = [];               // bind list the control helpers write into
+const binds = B, layerBinds = [];
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pane = n => document.querySelector(`[data-pane="${n}"]`);
+function group(parent, title, hint) {
+  const g = el('section', 'group');
+  if (title) g.append(el('h3', '', esc(title)));
+  if (hint) g.append(el('p', 'hint', hint));
+  parent.append(g); return g;
+}
+function more(parent, title = 'ปรับละเอียด') { const d = el('details', 'more'); d.append(el('summary', '', esc(title))); parent.append(d); return d; }
+function showIf(node, fn) { B.push(() => { node.style.display = fn() ? '' : 'none'; }); return node; }
+function defaultsFor(o) {
+  if (o === S.game) return DEFAULTS.game;
+  if (o === S.focus) return DEFAULTS.focus;
+  if (o === S.eff) return DEFAULTS.eff;
+  if (o === S.ch) return { ...DEFAULTS.ch, ...MODE_DEFAULTS[S.ch.mode] };
+  if (o === S.style) return DEFAULTS.style;
+  return { text: TEXT_DEF, image: IMAGE_DEF, items: ITEMS_DEF }[o.type] || {};
+}
+
+function slider(p, label, obj, key, min, max, step, fmt) {
+  const r = el('div', 'ctl', `<div class="ctl-head"><label>${esc(label)}</label><output></output></div><input type="range" min="${min}" max="${max}" step="${step}">`);
+  const inp = r.querySelector('input'), out = r.querySelector('output');
+  const show = fmt || (v => step >= 1 ? String(Math.round(v)) : (+v).toFixed(step < 0.1 ? 2 : 1));
+  const paint = () => {
+    inp.value = obj[key]; out.textContent = show(+obj[key]);
+    inp.style.setProperty('--p', Math.max(0, Math.min(100, (obj[key] - min) / (max - min) * 100)) + '%');
+  };
+  inp.oninput = () => { obj[key] = +inp.value; syncUI(); schedule(); };
+  inp.onchange = commit;
+  r.title = 'ดับเบิลคลิกเพื่อคืนค่าเริ่มต้น';
+  r.ondblclick = () => { const d = defaultsFor(obj)[key]; if (d === undefined) return; obj[key] = d; syncUI(); render(); commit(); };
+  B.push(paint); p.append(r); return r;
+}
+const pct = v => Math.round(v * 100) + '%';
+const deg = v => Math.round(v) + '°';
+const px = v => Math.round(v) + 'px';
+
+function toggle(p, label, obj, key, onChange) {
+  const r = el('label', 'ctl ctl-inline', `<span class="lbl">${esc(label)}</span><input type="checkbox" class="switch">`);
+  const inp = r.querySelector('input');
+  inp.onchange = () => { obj[key] = inp.checked; onChange && onChange(); syncUI(); render(); commit(); };
+  B.push(() => { inp.checked = !!obj[key]; });
+  p.append(r); return r;
+}
+function seg(p, label, opts, get, set) {
+  const r = el('div', 'ctl');
+  if (label) r.append(el('div', 'ctl-head', `<label>${esc(label)}</label>`));
+  const s = el('div', 'seg');
+  for (const [v, t, tip] of opts) {
+    const b = el('button', '', esc(t)); b.type = 'button'; b._v = v; if (tip) b.title = tip;
+    b.onclick = () => { set(v); syncUI(); render(); commit(); };
+    s.append(b);
+  }
+  r.append(s);
+  B.push(() => { const cur = get(); for (const b of s.children) b.classList.toggle('on', b._v === cur); });
+  p.append(r); return r;
+}
+const segK = (p, label, obj, key, opts, onSet) => seg(p, label, opts, () => obj[key], v => onSet ? onSet(v) : (obj[key] = v));
+function colorCtl(p, label, obj, key, sw) {
+  const r = el('div', 'ctl ctl-inline', `<span class="lbl">${esc(label)}</span><div class="color"><input type="text" spellcheck="false" maxlength="7"><input type="color"></div>`);
+  const [t, c] = r.querySelectorAll('input');
+  c.oninput = () => { obj[key] = c.value; t.value = c.value; schedule(); };
+  c.onchange = commit;
+  t.onchange = () => {
+    let v = t.value.trim(); if (!v.startsWith('#')) v = '#' + v;
+    if (/^#[0-9a-f]{6}$/i.test(v)) { obj[key] = v.toLowerCase(); render(); commit(); }
+    syncUI();
+  };
+  B.push(() => { c.value = obj[key]; if (document.activeElement !== t) t.value = obj[key]; });
+  p.append(r);
+  if (sw) {
+    const d = el('div', 'swatches');
+    for (const hex of sw) {
+      const b = el('button'); b.type = 'button'; b.style.background = hex; b.title = hex;
+      b.onclick = () => { obj[key] = hex; sw.onPick && sw.onPick(); syncUI(); render(); commit(); };
+      d.append(b);
+    }
+    p.append(d);
+    showIf(d, () => r.style.display !== 'none');
+  }
+  return r;
+}
+function selectCtl(p, label, obj, key, opts) {
+  const r = el('div', 'ctl', `<div class="ctl-head"><label>${esc(label)}</label></div><select>${opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select>`);
+  const sel = r.querySelector('select');
+  sel.onchange = () => { obj[key] = sel.value; syncUI(); render(); commit(); };
+  B.push(() => { sel.value = obj[key]; });
+  p.append(r); return r;
+}
+function textCtl(p, label, obj, key, multi, onInput) {
+  const r = el('div', 'ctl', `<div class="ctl-head"><label>${esc(label)}</label></div>${multi ? '<textarea rows="2"></textarea>' : '<input type="text" class="text">'}`);
+  const inp = r.querySelector(multi ? 'textarea' : 'input');
+  inp.oninput = () => { obj[key] = inp.value; schedule(); onInput && onInput(); };
+  inp.onchange = commit;
+  B.push(() => { if (inp.value !== obj[key]) inp.value = obj[key]; });
+  p.append(r); return r;
+}
+function btn(label, onClick, cls = 'btn sm', ic) {
+  const b = el('button', cls, (ic ? icon(ic, 14) : '') + (label ? `<span>${esc(label)}</span>` : ''));
+  b.type = 'button'; b.onclick = onClick; return b;
+}
+function btnRow(p, ...btns) { const r = el('div', 'btnrow'); r.append(...btns); p.append(r); return r; }
+const act = fn => () => { fn(); syncUI(); render(); commit(); };
+const SW = ['#ff2a4a', '#ff7a1a', '#ffc83a', '#3dff8a', '#2fd5ff', '#3a6bff', '#a83cff', '#ff4fd8', '#ffffff'];
+
+// ---------- tabs ----------
+function setTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === name));
+  try { localStorage.setItem('thumbmaker.tab', name); } catch {}
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => setTab(t.dataset.tab));
+
+// ---------- my styles ----------
+const LS_KEY = 'thumbmaker.styles', LS_DEF = 'thumbmaker.default';
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
+const LOOK = { game: ['bright', 'contrast', 'sat', 'sharp'], focus: ['vignette', 'soft', 'r'], eff: ['tol', 'minSat', 'region', 'sat', 'bright', 'glow', 'glowSize'] };
+
+function captureStyle(src) {
+  const ch = { ...src.ch };
+  for (const k of ['x', 'y', 'innerX', 'innerY', 'innerZoom']) delete ch[k];
+  return {
+    v: 1, side: src.ch.mode === 'slash' ? src.ch.panelSide : src.ch.x > W / 2 ? 'right' : 'left',
+    game: pick(src.game, LOOK.game), focus: pick(src.focus, LOOK.focus), eff: pick(src.eff, LOOK.eff),
+    ch, style: { ...src.style },
+    layers: src.layers.map(L => {
+      const n = clone(L); delete n.id;
+      if (n.type === 'items') n.imgIds = [];
+      if (n.type === 'image') { const im = store.get(L.imgId); n.src = im ? imgToDataURL(im) : null; delete n.imgId; }
+      return n;
+    })
+  };
+}
+const BASE_STYLE = captureStyle(DEFAULTS);
+
+async function applyStyle(st) {
+  for (const g of ['game', 'focus', 'eff', 'ch', 'style']) Object.assign(S[g], clone(BASE_STYLE[g]), st[g] || {});
+  const oldTexts = S.layers.filter(l => l.type === 'text').map(l => l.text);
+  const oldItems = (S.layers.find(l => l.type === 'items') || {}).imgIds || [];
+  const layers = [];
+  let ti = 0;
+  for (const L of st.layers || []) {
+    const n = clone(L); n.id = ++layerId;
+    if (n.type === 'image') {
+      const im = n.src ? await loadSrc(n.src) : null;
+      delete n.src;
+      if (!im) continue;
+      n.imgId = im._id;
+    }
+    if (n.type === 'items') n.imgIds = oldItems.slice();
+    if (n.type === 'text' && ti < oldTexts.length) n.text = oldTexts[ti++];
+    layers.push(n);
+  }
+  S.layers = layers; selectedId = null;
+  if (charImg) placeChar(st.side || 'right');
+  else if (S.ch.mode === 'slash') S.ch.panelSide = st.side || 'right';
+  renderLayerUI(); syncUI(); render(); commit();
+}
+
+const mkText = o => ({ ...clone(TEXT_DEF), ...o });
+const STARTERS = [
+  ['Manga Slash', 'ตัดเฉียง · screentone · speed lines', '#5ce1ff', {
+    side: 'right',
+    ch: { ...MODE_DEFAULTS.slash, mode: 'slash', slashX: 0.52, slashAngle: 16, lineColor: '#5ce1ff', lineW: 5, lineGlow: 28,
+      panelC1: '#04050a', panelC2: '#0e1a2c', popOut: true, popY: 0.22, scale: 1.12, glowColor: '#5ce1ff' },
+    style: { brand: '#5ce1ff', tone: 0.22, toneArea: 'panel', toneSize: 7, toneColor: '#bfefff', speed: 0.2, speedColor: '#ffffff', grain: 0.1 },
+    focus: { vignette: 0.55 },
+    layers: [mkText({ text: 'HOOK', x: 330, y: 120, size: 110, stroke2: '#5ce1ff', stroke2W: 6, rot: -4, skew: -8 })]
+  }],
+  ['Cinematic', 'ฟิล์ม · แถบดำ · ตัวหนังสือบาง', '#ffb547', {
+    side: 'right',
+    ch: { ...MODE_DEFAULTS.soft, mode: 'soft', glowColor: '#ffb547' },
+    style: { brand: '#ffb547', grain: 0.28, ca: 6, letterbox: 0.07 },
+    focus: { vignette: 0.7, soft: 0.7 }, game: { contrast: 1.12 },
+    layers: [mkText({ text: 'HOOK TEXT', font: 'Bebas Neue', weight: 400, size: 120, spacing: 8, strokeW: 0, shadow: 0.85,
+      glow: 22, glowColor: '#ffb547', rot: 0, skew: 0, x: 400, y: 590 })]
+  }],
+  ['Pop-out Panel', 'ทะลุกรอบ · ป้าย KDA · ไอเท็ม', '#ff2a4a', {
+    side: 'right',
+    ch: { ...MODE_DEFAULTS.popout, mode: 'popout', pX: 0.56, pY: 0.16, pW: 0.4, pH: 0.76, radius: 6, scale: 0.95,
+      panelC1: '#12030a', panelC2: '#3a0a1a', lineColor: '#ff2a4a', lineW: 5, lineGlow: 30, glowColor: '#ff2a4a' },
+    style: { brand: '#ff2a4a', tone: 0.15, toneArea: 'panel', toneColor: '#ff7a8c', speed: 0.18, speedColor: '#ffd0d6' },
+    layers: [
+      mkText({ text: '18/2/9', font: 'Russo One', weight: 400, size: 44, strokeW: 0, shadow: 0.4, bg: 0.8, skew: -10, rot: 0, x: 150, y: 70 }),
+      { ...clone(ITEMS_DEF), x: 330, y: 650, borderColor: '#c8aa6e' }
+    ]
+  }],
+  ['Clean', 'ค่าพื้นฐาน ไม่มีพื้นผิว', '#6b7180', {}]
+];
+
+function applyBrand() {
+  const b = S.style.brand;
+  S.ch.lineColor = b; S.ch.glowColor = b;
+  for (const L of S.layers) {
+    if (L.type === 'text') { L.stroke2 = b; L.glowColor = b; }
+    if (L.type === 'image') L.borderColor = b;
+  }
+  renderLayerUI();
+}
+
+// ---------- pane: game ----------
+{
+  const P = pane('game');
+  let g = group(P, 'ภาพเกม', 'ภาพเกมจะไม่ถูกย้อมสี เพื่อให้คนดูรู้ทันทีว่าเป็น LoL');
+  slider(g, 'ความคม', S.game, 'sharp', 0, 1, 0.05, pct);
+  slider(g, 'ความสว่าง', S.game, 'bright', 0.5, 1.5, 0.01, pct);
+  slider(g, 'คอนทราสต์', S.game, 'contrast', 0.7, 1.6, 0.01, pct);
+  slider(g, 'ความสดสี', S.game, 'sat', 0.5, 1.8, 0.01, pct);
+  slider(g, 'ซูม', S.game, 'zoom', 1, 4, 0.01, v => v.toFixed(2) + '×');
+  btnRow(g, btn('จัดภาพเกมกลับกึ่งกลาง', act(() => Object.assign(S.game, { zoom: 1, ox: 0, oy: 0 })), 'btn sm block', 'center'));
+
+  g = group(P, 'จุดโฟกัส', 'วางวงไว้ที่แชมป์ของเรา รอบนอกวงจะค่อย ๆ มืดลงเพื่อดึงสายตา');
+  btnRow(g, btn('วางจุดโฟกัสบนภาพ', () => setTool('focus'), 'btn sm block', 'target'));
+  slider(g, 'ความมืดรอบนอก', S.focus, 'vignette', 0, 1, 0.01, pct);
+  slider(g, 'ความนุ่มของเงา', S.focus, 'soft', 0, 1, 0.01, pct);
+  slider(g, 'ขนาดวง', S.focus, 'r', 0.03, 0.8, 0.01, pct);
+
+  g = group(P, 'เอฟเฟกต์สกิล', 'ปรับสีเฉพาะเอฟเฟกต์ที่เลือก พื้นเกมรอบ ๆ ไม่ถูกแตะ');
+  toggle(g, 'เปิดใช้', S.eff, 'on');
+  btnRow(g, btn('ดูดสีจากสกิลในภาพ', () => setTool('pick'), 'btn sm block', 'pipette'));
+  const eg = el('div'); g.append(eg); showIf(eg, () => S.eff.on);
+  colorCtl(eg, 'สีที่เลือก', S.eff, 'target');
+  toggle(eg, 'แสดงพื้นที่ที่ถูกเลือก', S.eff, 'preview');
+  toggle(eg, 'เฉพาะในวงโฟกัส', S.eff, 'region');
+  slider(eg, 'ความสด', S.eff, 'sat', 0.5, 2.5, 0.01, pct);
+  slider(eg, 'ความสว่าง', S.eff, 'bright', 0.5, 2, 0.01, pct);
+  slider(eg, 'เรืองแสง', S.eff, 'glow', 0, 1.5, 0.01, pct);
+  slider(eg, 'รัศมีเรืองแสง', S.eff, 'glowSize', 2, 50, 1, px);
+  toggle(eg, 'เปลี่ยนเป็นสีอื่น', S.eff, 'recolor');
+  const sw = [...SW]; sw.onPick = () => { S.eff.recolor = true; };
+  showIf(colorCtl(eg, 'สีใหม่', S.eff, 'color', sw), () => S.eff.recolor);
+  const m = more(eg, 'ช่วงการเลือก');
+  slider(m, 'ช่วงสีที่รวม', S.eff, 'tol', 5, 180, 1, deg);
+  slider(m, 'ความสดขั้นต่ำ', S.eff, 'minSat', 0.05, 0.9, 0.01, pct);
+}
+
+// ---------- pane: character ----------
+const MODE_SVG = (() => {
+  const bg = '<rect width="64" height="36" fill="#363c48"/><circle cx="17" cy="21" r="6" fill="#4d5465"/><circle cx="24" cy="12" r="2.5" fill="#4d5465"/>';
+  const fig = (x = 46, hy = 16) => `<circle cx="${x}" cy="${hy}" r="5" fill="#dfe2e8"/><path d="M${x - 9} 36c0-8 4-${36 - hy - 9} 9-${36 - hy - 9}s9 ${36 - hy - 17} 9 ${36 - hy - 9}z" fill="#dfe2e8"/>`;
+  const svg = s => `<svg viewBox="0 0 64 36">${bg}${s}</svg>`;
+  return {
+    cutout: svg(`<rect x="32" width="32" height="36" fill="#000" opacity=".35"/>${fig()}`),
+    soft: svg(`<rect x="28" width="4" height="36" fill="#0a0b0e" opacity=".35"/><rect x="32" width="32" height="36" fill="#0a0b0e" opacity=".8"/>${fig()}`),
+    frame: svg(`<rect x="33" y="3" width="28" height="19" fill="#0a0b0e"/><circle cx="47" cy="10" r="3" fill="#dfe2e8"/><path d="M41 22c0-5 3-8 6-8s6 3 6 8z" fill="#dfe2e8"/>`),
+    slash: svg(`<path d="M37 0H64V36H29z" fill="#0a0b0e"/><path d="M37 0 29 36" style="stroke:var(--accent)" stroke-width="1.6"/>${fig()}`),
+    popout: svg(`<rect x="35" y="15" width="24" height="21" fill="#0a0b0e" style="stroke:var(--accent)" stroke-width="1"/>${fig(47, 12)}`)
+  };
+})();
+const MODES = [
+  ['cutout', 'ตัดพื้น', 'ภาพ PNG ที่ตัดพื้นหลังแล้ว วางบนฉากพร้อมเงาดำด้านหลัง'],
+  ['soft', 'กลืนขอบ', 'ภาพที่มีพื้นหลัง (เช่นพื้นดำ) ขอบจะค่อย ๆ จางเข้าหาเกม'],
+  ['frame', 'กรอบ', 'ภาพที่มีฉากหลัง วางในกรอบสี่เหลี่ยมขอบคม'],
+  ['slash', 'ตัดเฉียง', 'แบ่งภาพด้วยรอยตัดเฉียงเรืองแสง หัวตัวละครทะลุเส้นได้'],
+  ['popout', 'ทะลุกรอบ', 'ตัวละครอยู่ในกรอบ แต่ส่วนบนโผล่ออกนอกกรอบ (ต้องเป็น PNG)']
+];
+{
+  const P = pane('char');
+  let g = group(P, 'รูปแบบการวาง');
+  const grid = el('div', 'modes'); g.append(grid);
+  const desc = el('p', 'modeDesc'); g.append(desc);
+  for (const [k, name] of MODES) {
+    const b = el('button', 'mode', MODE_SVG[k] + `<span>${name}</span>`); b.type = 'button';
+    b.onclick = act(() => setMode(k));
+    grid.append(b);
+    B.push(() => b.classList.toggle('on', S.ch.mode === k));
+  }
+  B.push(() => { desc.textContent = MODES.find(m => m[0] === S.ch.mode)[2]; });
+
+  g = group(P, 'ตำแหน่ง');
+  seg(g, 'ฝั่ง', [['left', 'ซ้าย'], ['right', 'ขวา']], charSide, v => { if (charImg) placeChar(v); else toast('ยังไม่ได้ใส่ภาพตัวละคร'); });
+  slider(g, 'ขนาด', S.ch, 'scale', 0.2, 3, 0.01, pct);
+  btnRow(g, btn('กลับด้านซ้าย-ขวา', act(() => { S.ch.flip = !S.ch.flip; }), 'btn sm block', 'flip'));
+
+  const mIs = (...ms) => () => ms.includes(S.ch.mode);
+  g = group(P, 'กรอบ / แผง'); showIf(g, mIs('frame', 'slash', 'popout'));
+  showIf(slider(g, 'ตำแหน่งรอยตัด', S.ch, 'slashX', 0.2, 0.8, 0.01, pct), mIs('slash'));
+  showIf(slider(g, 'ความเอียง', S.ch, 'slashAngle', -40, 40, 1, deg), mIs('slash'));
+  showIf(toggle(g, 'ให้หัวทะลุรอยตัด', S.ch, 'popOut'), mIs('slash'));
+  showIf(slider(g, 'ระดับที่เริ่มทะลุ', S.ch, 'popY', 0, 1, 0.01, pct), () => S.ch.mode === 'slash' && S.ch.popOut);
+  showIf(slider(g, 'กว้าง', S.ch, 'frameW', 150, 1280, 1, px), mIs('frame'));
+  showIf(slider(g, 'สูง', S.ch, 'frameH', 100, 720, 1, px), mIs('frame'));
+  showIf(slider(g, 'ซูมภาพในกรอบ', S.ch, 'innerZoom', 1, 4, 0.01, v => v.toFixed(2) + '×'), mIs('frame'));
+  showIf(slider(g, 'เส้นขอบ', S.ch, 'border', 0, 12, 1, px), mIs('frame'));
+  showIf(slider(g, 'ตำแหน่ง X', S.ch, 'pX', 0, 0.9, 0.01, pct), mIs('popout'));
+  showIf(slider(g, 'ตำแหน่ง Y', S.ch, 'pY', 0, 0.9, 0.01, pct), mIs('popout'));
+  showIf(slider(g, 'กว้าง', S.ch, 'pW', 0.1, 1, 0.01, pct), mIs('popout'));
+  showIf(slider(g, 'สูง', S.ch, 'pH', 0.1, 1, 0.01, pct), mIs('popout'));
+  showIf(slider(g, 'มุมโค้ง', S.ch, 'radius', 0, 120, 1, px), mIs('frame', 'popout'));
+  showIf(colorCtl(g, 'สีเส้น', S.ch, 'lineColor'), mIs('slash', 'popout'));
+  showIf(slider(g, 'ความหนาเส้น', S.ch, 'lineW', 0, 16, 1, px), mIs('slash', 'popout'));
+  showIf(slider(g, 'เส้นเรืองแสง', S.ch, 'lineGlow', 0, 80, 1, px), mIs('slash', 'popout'));
+  const pm = more(g, 'สีพื้นแผง'); showIf(pm, mIs('slash', 'popout'));
+  colorCtl(pm, 'สีพื้น บน-ซ้าย', S.ch, 'panelC1');
+  colorCtl(pm, 'สีพื้น ล่าง-ขวา', S.ch, 'panelC2');
+
+  g = group(P, 'กลืนกับฉาก', 'สร้างพื้นที่มืดรอบตัวละคร ให้ตัวละครเด่นและเข้ากับภาพเกม');
+  slider(g, 'เงาดำหลังตัว', S.ch, 'backdrop', 0, 1, 0.01, pct);
+  slider(g, 'ขนาดเงาดำ', S.ch, 'backdropSize', 0.4, 2.5, 0.01, pct);
+  slider(g, 'มืดฝั่งตัวละคร', S.ch, 'sideDark', 0, 1, 0.01, pct);
+  slider(g, 'จางฝั่งที่หันเข้าเกม', S.ch, 'fadeInner', 0, 0.8, 0.01, pct);
+  slider(g, 'จางด้านล่าง', S.ch, 'fadeBottom', 0, 0.8, 0.01, pct);
+  slider(more(g), 'จางขอบทุกด้าน', S.ch, 'fadeEdge', 0, 0.5, 0.01, pct);
+
+  g = group(P, 'แสงและออร่า');
+  colorCtl(g, 'สีออร่า', S.ch, 'glowColor');
+  btnRow(g, btn('ใช้สีเดียวกับเอฟเฟกต์สกิล', act(() => {
+    const c = S.eff.recolor ? S.eff.color : S.eff.target;
+    S.ch.glowColor = c; S.ch.tintColor = c;
+  }), 'btn sm block', 'pipette'));
+  slider(g, 'รัศมีออร่า', S.ch, 'glow', 0, 120, 1, px);
+  slider(g, 'ความแรงออร่า', S.ch, 'glowStrength', 0, 4, 1);
+  slider(g, 'ขอบไฟ (rim light)', S.ch, 'rim', -20, 20, 1, px);
+  slider(g, 'เงาดำรอบตัว', S.ch, 'shadow', 0, 1, 0.01, pct);
+  const tm = more(g, 'แสงสีบนตัวละคร');
+  colorCtl(tm, 'สีแสง', S.ch, 'tintColor');
+  slider(tm, 'ความแรง', S.ch, 'tint', 0, 1, 0.01, pct);
+
+  g = group(P, 'สีภาพตัวละคร');
+  slider(g, 'ความสว่าง', S.ch, 'bright', 0.3, 1.8, 0.01, pct);
+  slider(g, 'คอนทราสต์', S.ch, 'contrast', 0.5, 2, 0.01, pct);
+  slider(g, 'ความสดสี', S.ch, 'sat', 0, 2.5, 0.01, pct);
+  segK(g, 'การผสม', S.ch, 'blend', [['source-over', 'ปกติ'], ['lighten', 'ลบพื้นดำ', 'Lighten'], ['screen', 'ลบพื้นดำ + สว่าง', 'Screen']]);
+}
+
+// ---------- pane: look ----------
+{
+  const P = pane('look');
+  let g = group(P, 'สีประจำช่อง', 'ใช้สีเดียวกันทุกคลิป ให้คนดูจำช่องได้จากหน้าปก');
+  colorCtl(g, 'สีประจำช่อง', S.style, 'brand', SW);
+  btnRow(g, btn('ใช้กับเส้น ออร่า ข้อความ และโลโก้', act(applyBrand), 'btn sm block'));
+
+  g = group(P, 'Speed lines', 'เส้นพุ่งเข้าหาจุดโฟกัส แบบฉากแอ็กชันในมังงะ');
+  slider(g, 'ความเข้ม', S.style, 'speed', 0, 1, 0.01, pct);
+  const sg = el('div'); g.append(sg); showIf(sg, () => S.style.speed > 0);
+  slider(sg, 'จำนวนเส้น', S.style, 'speedCount', 10, 300, 1);
+  slider(sg, 'ความหนา', S.style, 'speedWidth', 1, 12, 0.5);
+  slider(sg, 'ระยะว่างตรงกลาง', S.style, 'speedInner', 0.5, 4, 0.05, v => v.toFixed(1) + '×');
+  colorCtl(sg, 'สีเส้น', S.style, 'speedColor');
+  btnRow(sg, btn('สุ่มลายเส้นใหม่', act(() => { S.style.seed = Math.floor(Math.random() * 1e9); }), 'btn sm block', 'dice'));
+
+  g = group(P, 'Screentone', 'จุดแบบหน้ามังงะ ใส่ในส่วนที่มืด');
+  slider(g, 'ความเข้ม', S.style, 'tone', 0, 1, 0.01, pct);
+  const tg = el('div'); g.append(tg); showIf(tg, () => S.style.tone > 0);
+  segK(tg, 'บริเวณ', S.style, 'toneArea', [['panel', 'ในแผง'], ['outside', 'รอบโฟกัส'], ['all', 'ทั้งภาพ']]);
+  slider(tg, 'ขนาดจุด', S.style, 'toneSize', 3, 20, 1, px);
+  colorCtl(tg, 'สีจุด', S.style, 'toneColor');
+
+  g = group(P, 'ฟิล์ม');
+  slider(g, 'เกรนฟิล์ม', S.style, 'grain', 0, 0.6, 0.01, pct);
+  slider(g, 'สีเหลื่อมที่ขอบ', S.style, 'ca', 0, 20, 0.5, px);
+  slider(g, 'แถบดำบน-ล่าง', S.style, 'letterbox', 0, 0.15, 0.005, pct);
+}
+
+// ---------- pane: text / layers ----------
+const layerPane = pane('text');
+{
+  const g = group(layerPane, 'เลเยอร์', 'ข้อความ hook, โลโก้ช่อง, ไอคอนแชมป์ หรือไอเท็ม build');
+  const r = el('div', 'btnrow'); g.append(r);
+  r.append(
+    btn('ข้อความ', () => addLayer(mkText({ stroke2: S.style.brand, glowColor: S.style.brand })), 'btn sm', 'type'),
+    btn('รูป/โลโก้', () => filePicker(false, async fs => {
+      const im = await loadImageFile(fs[0]);
+      if (im) addLayer({ ...clone(IMAGE_DEF), imgId: im._id, borderColor: S.style.brand });
+    }), 'btn sm', 'image'),
+    btn('ไอเท็ม', () => filePicker(true, async fs => {
+      const L = { ...clone(ITEMS_DEF) };
+      for (const f of fs) { const im = await loadImageFile(f); if (im) L.imgIds.push(im._id); }
+      addLayer(L);
+    }), 'btn sm', 'grid')
+  );
+}
+const layerList = el('div', 'list'); layerPane.querySelector('.group').append(layerList);
+const layerProps = el('div'); layerPane.append(layerProps);
+
+function addLayer(L) {
+  L.id = ++layerId; S.layers.push(L); selectedId = L.id;
+  setTab('text'); renderLayerUI(); render(); commit();
+}
+function removeLayer(id) {
+  S.layers = S.layers.filter(l => l.id !== id);
+  if (selectedId === id) selectedId = null;
+  renderLayerUI(); render(); commit();
+}
+function layerName(L) {
+  if (L.type === 'text') return L.text.split('\n')[0] || '(ข้อความว่าง)';
+  if (L.type === 'image') return 'รูป / โลโก้';
+  return `ไอเท็ม build · ${L.imgIds.length} ชิ้น`;
+}
+const TYPE_IC = { text: 'type', image: 'image', items: 'grid' };
+function renderLayerList() {
+  layerList.innerHTML = '';
+  if (!S.layers.length) { layerList.append(el('div', 'empty-note', 'ยังไม่มีเลเยอร์ — เพิ่มจากปุ่มด้านบน')); return; }
+  [...S.layers].reverse().forEach(L => {
+    const hidden = L.visible === false;
+    const d = el('div', 'item' + (L.id === selectedId ? ' sel' : '') + (hidden ? ' hidden' : ''),
+      `<span class="ic-type">${icon(TYPE_IC[L.type], 15)}</span><span class="nm"></span><div class="acts">
+        <button title="${hidden ? 'แสดง' : 'ซ่อน'}">${icon(hidden ? 'eyeOff' : 'eye', 15)}</button>
+        <button title="เลื่อนขึ้น">${icon('up', 15)}</button>
+        <button title="เลื่อนลง">${icon('down', 15)}</button>
+        <button title="ลบ">${icon('trash', 15)}</button></div>`);
+    d.querySelector('.nm').textContent = layerName(L);
+    const [vis, up, down, del] = d.querySelectorAll('.acts button');
+    d.onclick = () => { selectedId = L.id; renderLayerUI(); render(); };
+    vis.onclick = e => { e.stopPropagation(); L.visible = hidden; renderLayerList(); render(); commit(); };
+    const move = dir => e => {
+      e.stopPropagation();
+      const i = S.layers.indexOf(L), j = i + dir;
+      if (j < 0 || j >= S.layers.length) return;
+      [S.layers[i], S.layers[j]] = [S.layers[j], S.layers[i]];
+      renderLayerList(); render(); commit();
+    };
+    up.onclick = move(1); down.onclick = move(-1);
+    del.onclick = e => { e.stopPropagation(); removeLayer(L.id); };
+    layerList.append(d);
+  });
+}
+
+const TEXT_PRESETS = [
+  ['ขาว ขอบดำ', { fill1: '#ffffff', grad: false, stroke: '#000000', strokeW: 8, stroke2W: 0, glow: 0, bg: 0 }],
+  ['ขอบคู่สีช่อง', () => ({ fill1: '#ffffff', grad: false, stroke: '#000000', strokeW: 7, stroke2: S.style.brand, stroke2W: 6, glow: 0, bg: 0 })],
+  ['ทองไล่สี', { fill1: '#fff6c8', fill2: '#ffb22e', grad: true, stroke: '#2a1600', strokeW: 7, stroke2W: 0, glow: 18, glowColor: '#ff9a00', bg: 0 }],
+  ['แดงเรืองแสง', { fill1: '#ffffff', fill2: '#ffb0bb', grad: true, stroke: '#3a0008', strokeW: 6, stroke2: '#ff2a4a', stroke2W: 5, glow: 30, glowColor: '#ff2a4a', bg: 0 }],
+  ['ป้าย / KDA', { font: 'Russo One', weight: 400, fill1: '#ffffff', grad: false, strokeW: 0, stroke2W: 0, glow: 0, bg: 0.8, bgColor: '#000000', rot: 0, skew: -10, shadow: 0.4 }]
+];
+
+function renderLayerProps() {
+  layerProps.innerHTML = '';
+  layerBinds.length = 0;
+  const L = selLayer();
+  if (!L) return;
+  B = layerBinds;
+  const head = el('div', 'propsHead', `<h3>แก้ไข: ${{ text: 'ข้อความ', image: 'รูป / โลโก้', items: 'ไอเท็ม build' }[L.type]}</h3>`);
+  head.append(btn('', () => { selectedId = null; renderLayerUI(); render(); }, 'btn ghost sm', 'up'));
+  head.lastChild.title = 'ย่อ';
+  layerProps.append(head);
+  if (L.type === 'text') {
+    let g = group(layerProps);
+    textCtl(g, 'ข้อความ (Enter = ขึ้นบรรทัดใหม่)', L, 'text', true, renderLayerList);
+    const chips = el('div', 'chips'); g.append(chips);
+    for (const [n, v] of TEXT_PRESETS) {
+      const c = el('button', 'chip', esc(n)); c.type = 'button';
+      c.onclick = act(() => Object.assign(L, typeof v === 'function' ? v() : v));
+      chips.append(c);
+    }
+    g = group(layerProps, 'ตัวอักษร');
+    selectCtl(g, 'ฟอนต์', L, 'font', FONTS);
+    seg(g, 'น้ำหนัก', [[400, 'ปกติ'], [700, 'หนา'], [800, 'หนามาก'], [900, 'Black']], () => L.weight, v => { L.weight = v; });
+    slider(g, 'ขนาด', L, 'size', 16, 260, 1, px);
+    segK(g, 'จัดแนว', L, 'align', [['left', 'ซ้าย'], ['center', 'กลาง'], ['right', 'ขวา']]);
+    toggle(g, 'ตัวพิมพ์ใหญ่ทั้งหมด', L, 'upper');
+    g = group(layerProps, 'สีและขอบ');
+    colorCtl(g, 'สีตัวอักษร', L, 'fill1');
+    toggle(g, 'ไล่สีลงด้านล่าง', L, 'grad');
+    showIf(colorCtl(g, 'สีด้านล่าง', L, 'fill2'), () => L.grad);
+    slider(g, 'ขอบใน', L, 'strokeW', 0, 30, 1, px);
+    colorCtl(g, 'สีขอบใน', L, 'stroke');
+    slider(g, 'ขอบนอก', L, 'stroke2W', 0, 30, 1, px);
+    showIf(colorCtl(g, 'สีขอบนอก', L, 'stroke2'), () => L.stroke2W > 0);
+    slider(g, 'เรืองแสง', L, 'glow', 0, 80, 1, px);
+    showIf(colorCtl(g, 'สีเรืองแสง', L, 'glowColor'), () => L.glow > 0);
+    slider(g, 'เงาตก', L, 'shadow', 0, 1, 0.01, pct);
+    g = group(layerProps, 'ป้ายพื้นหลัง');
+    slider(g, 'ความทึบ', L, 'bg', 0, 1, 0.01, pct);
+    showIf(colorCtl(g, 'สีป้าย', L, 'bgColor'), () => L.bg > 0);
+    showIf(slider(g, 'ระยะขอบป้าย', L, 'bgPad', 0, 60, 1, px), () => L.bg > 0);
+    g = group(layerProps, 'รูปทรง');
+    slider(g, 'หมุน', L, 'rot', -30, 30, 0.5, deg);
+    slider(g, 'เอียง', L, 'skew', -30, 30, 0.5, deg);
+    const m = more(g);
+    slider(m, 'ระยะห่างตัวอักษร', L, 'spacing', -10, 40, 1, px);
+    slider(m, 'ระยะบรรทัด', L, 'lineH', 0.7, 1.6, 0.01, v => v.toFixed(2));
+  } else if (L.type === 'image') {
+    const g = group(layerProps);
+    btnRow(g, btn('เปลี่ยนรูป', () => filePicker(false, async fs => {
+      const im = await loadImageFile(fs[0]); if (im) { L.imgId = im._id; render(); commit(); }
+    }), 'btn sm block', 'upload'));
+    slider(g, 'ขนาด', L, 'size', 20, 600, 1, px);
+    toggle(g, 'ตัดเป็นวงกลม', L, 'round');
+    showIf(slider(g, 'มุมโค้ง', L, 'radius', 0, 100, 1, px), () => !L.round);
+    slider(g, 'ขอบ', L, 'border', 0, 20, 1, px);
+    showIf(colorCtl(g, 'สีขอบ', L, 'borderColor'), () => L.border > 0);
+    slider(g, 'เงา', L, 'shadow', 0, 1, 0.01, pct);
+    slider(g, 'ความทึบ', L, 'opacity', 0.1, 1, 0.01, pct);
+    slider(g, 'หมุน', L, 'rot', -45, 45, 0.5, deg);
+  } else {
+    let g = group(layerProps, null, 'เลือกได้หลายรูปพร้อมกัน หรือลากรูปมาวางบนกล่องไอเท็มในภาพ เรียงตามลำดับที่เพิ่ม');
+    const r = el('div', 'btnrow'); g.append(r);
+    r.append(
+      btn('เพิ่มรูป', () => filePicker(true, fs => addItemFiles(L, fs)), 'btn sm', 'plus'),
+      btn('ลบชิ้นสุดท้าย', () => { L.imgIds.pop(); renderLayerList(); render(); commit(); }, 'btn sm'),
+      btn('ล้าง', () => { L.imgIds = []; renderLayerList(); render(); commit(); }, 'btn sm danger')
+    );
+    g = group(layerProps, 'การจัดวาง');
+    segK(g, 'เรียง', L, 'dir', [['row', 'แนวนอน'], ['col', 'แนวตั้ง']]);
+    slider(g, 'ขนาดช่อง', L, 'slot', 24, 160, 1, px);
+    slider(g, 'ระยะห่าง', L, 'gap', 0, 30, 1, px);
+    slider(g, 'มุมโค้ง', L, 'radius', 0, 40, 1, px);
+    slider(g, 'ขอบ', L, 'border', 0, 8, 0.5, px);
+    colorCtl(g, 'สีขอบ', L, 'borderColor');
+    slider(g, 'พื้นหลังดำ', L, 'plate', 0, 1, 0.01, pct);
+    g = group(layerProps, 'หัวข้อ');
+    textCtl(g, 'ข้อความหัวข้อ (เว้นว่างได้)', L, 'label', false);
+    const hg = el('div'); g.append(hg); showIf(hg, () => !!L.label);
+    slider(hg, 'ขนาด', L, 'labelSize', 10, 48, 1, px);
+    colorCtl(hg, 'สี', L, 'labelColor');
+    selectCtl(hg, 'ฟอนต์', L, 'font', FONTS);
+  }
+  B = binds;
+  layerBinds.forEach(f => f());
+}
+function renderLayerUI() { renderLayerList(); renderLayerProps(); }
+
+// ---------- pane: styles ----------
+{
+  const P = pane('styles');
+  let g = group(P, 'เริ่มจากสไตล์ตัวอย่าง', 'เลือกแล้วปรับต่อให้เป็นแบบของตัวเอง ข้อความและไอเท็มที่ใส่ไว้จะย้ายไปด้วย');
+  const cards = el('div', 'cards'); g.append(cards);
+  for (const [name, desc, color, def] of STARTERS) {
+    const c = el('button', 'card', `<div class="bar" style="background:${color}"></div><b>${esc(name)}</b><small>${esc(desc)}</small>`);
+    c.type = 'button';
+    c.onclick = () => { applyStyle(clone(def)); toast(`ใช้สไตล์ ${name}`); };
+    cards.append(c);
+  }
+
+  g = group(P, 'สไตล์ของฉัน', 'บันทึกทุกการตั้งค่า (สี เส้น พื้นผิว ข้อความ โลโก้) ไว้ใช้ซ้ำทุกคลิป');
+  const row = el('div', 'inline', '<input type="text" class="text" placeholder="ตั้งชื่อสไตล์ เช่น ซีรีส์ Saber">');
+  const nameInp = row.querySelector('input');
+  row.append(btn('บันทึก', () => {
+    const n = nameInp.value.trim();
+    if (!n) { nameInp.focus(); return toast('ตั้งชื่อสไตล์ก่อน'); }
+    saveAs(n); nameInp.value = '';
+  }, 'btn sm', 'save'));
+  nameInp.onkeydown = e => { if (e.key === 'Enter') row.querySelector('button').click(); };
+  g.append(row);
+  const list = el('div', 'list'); g.append(list);
+
+  function saveAs(name) {
+    const all = lsGet(LS_KEY, {}); all[name] = captureStyle(S);
+    if (!lsSet(LS_KEY, all)) return toast('บันทึกไม่ได้ — ลองส่งออกเป็นไฟล์แทน');
+    refresh(); toast(`บันทึก "${name}" แล้ว`);
+  }
+  function refresh() {
+    const all = lsGet(LS_KEY, {}), def = lsGet(LS_DEF, null), names = Object.keys(all);
+    list.innerHTML = '';
+    if (!names.length) { list.append(el('div', 'empty-note', 'ยังไม่มีสไตล์ที่บันทึกไว้')); return; }
+    for (const n of names) {
+      const d = el('div', 'item', `<span class="nm"></span><div class="acts">
+        <button class="star${n === def ? ' on' : ''}" title="${n === def ? 'ใช้อยู่ทุกครั้งที่เปิด (คลิกเพื่อยกเลิก)' : 'ใช้ทุกครั้งที่เปิดเครื่องมือ'}">${icon('star', 15)}</button>
+        <button title="บันทึกทับด้วยค่าปัจจุบัน">${icon('save', 15)}</button>
+        <button title="ลบ">${icon('trash', 15)}</button></div>`);
+      d.querySelector('.nm').textContent = n;
+      const [star, ow, del] = d.querySelectorAll('.acts button');
+      d.onclick = () => { applyStyle(all[n]); toast(`ใช้สไตล์ "${n}"`); };
+      star.onclick = e => { e.stopPropagation(); lsSet(LS_DEF, n === def ? null : n); refresh(); };
+      ow.onclick = e => { e.stopPropagation(); saveAs(n); };
+      del.onclick = e => {
+        e.stopPropagation();
+        if (!del.classList.contains('confirm')) {
+          del.classList.add('confirm'); del.textContent = 'ยืนยันลบ';
+          setTimeout(() => { if (del.isConnected) refresh(); }, 2500);
+          return;
+        }
+        const a = lsGet(LS_KEY, {}); delete a[n]; lsSet(LS_KEY, a);
+        if (n === def) lsSet(LS_DEF, null);
+        refresh();
+      };
+      list.append(d);
+    }
+  }
+  refresh();
+
+  g = group(P, 'ไฟล์สไตล์', 'สำรองไว้ หรือย้ายไปใช้เครื่องอื่น');
+  btnRow(g,
+    btn('ส่งออก', () => {
+      const name = nameInp.value.trim() || 'my-style';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify({ name, ...captureStyle(S) })], { type: 'application/json' }));
+      a.download = `${name}.thumbstyle.json`; a.click();
+    }, 'btn sm', 'download'),
+    btn('นำเข้า', () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+      inp.onchange = async () => {
+        try {
+          const st = JSON.parse(await inp.files[0].text());
+          const name = st.name || inp.files[0].name.replace(/\.thumbstyle\.json$|\.json$/, '');
+          const all = lsGet(LS_KEY, {}); all[name] = st; lsSet(LS_KEY, all); refresh();
+          await applyStyle(st); toast(`นำเข้า "${name}" แล้ว`);
+        } catch { toast('ไฟล์สไตล์ไม่ถูกต้อง'); }
+      };
+      inp.click();
+    }, 'btn sm', 'upload')
+  );
+}
+
+function syncUI() {
+  binds.forEach(f => f());
+  layerBinds.forEach(f => f());
+}
+
+// ---------- export ----------
+function save(type) {
+  render(true);
+  const ext = type === 'image/png' ? 'png' : 'jpg';
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const name = `thumbnail-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.${ext}`;
+  cv.toBlob(b => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    render();
+    toast(`บันทึก ${name} · ${(b.size / 1024 / 1024).toFixed(2)} MB`);
+  }, type, 0.92);
+}
+document.getElementById('savePng').onclick = () => save('image/png');
+document.getElementById('saveJpg').onclick = () => save('image/jpeg');
+
+{
+  let t = null;
+  try { t = localStorage.getItem('thumbmaker.tab'); } catch {}
+  setTab(pane(t) ? t : 'game');
+}
+updateSlots(); renderLayerUI(); setTool('move'); syncUI(); render(); commit();
+document.fonts.ready.then(schedule);
+{
+  const def = lsGet(LS_DEF, null), all = lsGet(LS_KEY, {});
+  if (def && all[def]) applyStyle(all[def]);
+}
+</script>
+</body>
+</html>
